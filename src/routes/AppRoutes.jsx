@@ -8,6 +8,7 @@ import {
 import PublicLayout from "../layouts/PublicLayout";
 import AuthLayout from "../layouts/AuthLayout";
 import StudentLayout from "../layouts/StudentLayout";
+import RecruiterLayout from "../layouts/RecruiterLayout";
 
 // Public Pages
 import Home from "../pages/Public/Home";
@@ -33,10 +34,22 @@ import Notifications from "../pages/Student/Notifications";
 import Resume from "../pages/Student/Resume";
 import Settings from "../pages/Student/Settings";
 
+// Recruiter Pages
+import DashboardRecruiter from "../pages/Recruiter/Dashboard";
+import CompanyProfile from "../pages/Recruiter/CompanyProfile";
+import PostJob from "../pages/Recruiter/PostJob";
+import ManageJobs from "../pages/Recruiter/ManageJobs";
+import Applicants from "../pages/Recruiter/Applicants";
+import CandidateSearch from "../pages/Recruiter/CandidateSearch";
+import RecruiterInterviews from "../pages/Recruiter/Interviews";
+import RecruiterNotifications from "../pages/Recruiter/Notifications";
+import RecruiterSettings from "../pages/Recruiter/Settings";
+
 function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
+
         {/* Public Website */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<Home />} />
@@ -69,8 +82,24 @@ function AppRoutes() {
           <Route path="settings" element={<Settings />} />
         </Route>
 
+        {/* Recruiter Portal */}
+        <Route path="/recruiter" element={<RecruiterLayout />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+
+          <Route path="dashboard" element={<DashboardRecruiter />} />
+          <Route path="company-profile" element={<CompanyProfile />} />
+          <Route path="post-job" element={<PostJob />} />
+          <Route path="manage-jobs" element={<ManageJobs />} />
+          <Route path="applicants" element={<Applicants />} />
+          <Route path="candidates" element={<CandidateSearch />} />
+          <Route path="interviews" element={<RecruiterInterviews />} />
+          <Route path="notifications" element={<RecruiterNotifications />} />
+          <Route path="settings" element={<RecruiterSettings />} />
+        </Route>
+
         {/* Unknown Route */}
         <Route path="*" element={<Navigate to="/" replace />} />
+
       </Routes>
     </BrowserRouter>
   );
