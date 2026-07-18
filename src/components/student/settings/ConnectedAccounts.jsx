@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
-  Github,
-  Linkedin,
+  BriefcaseBusiness,
   Globe,
   Code2,
   ExternalLink,
@@ -20,7 +19,7 @@ function ConnectedAccounts({ settings }) {
       title: "GitHub",
       description:
         "Showcase your repositories, contributions, and technical projects.",
-      icon: Github,
+      icon: Code2,
       iconStyle: "bg-neutral-900 text-white",
       placeholder: "https://github.com/username",
     },
@@ -29,7 +28,7 @@ function ConnectedAccounts({ settings }) {
       title: "LinkedIn",
       description:
         "Connect your professional profile and networking presence.",
-      icon: Linkedin,
+      icon: BriefcaseBusiness,
       iconStyle: "bg-blue-100 text-blue-700",
       placeholder: "https://linkedin.com/in/username",
     },
