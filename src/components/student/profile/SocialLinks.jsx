@@ -1,119 +1,101 @@
 import {
-    Linkedin,
-    Github,
-    Globe,
-    Code2,
-    Trophy,
-    Pencil,
-  } from "lucide-react";
-  
-  const socialLinks = [
-    {
-      id: 1,
-      platform: "LinkedIn",
-      username: "linkedin.com/in/johndoe",
-      icon: <Linkedin size={20} />,
-      color: "text-blue-600",
-    },
-    {
-      id: 2,
-      platform: "GitHub",
-      username: "github.com/johndoe",
-      icon: <Github size={20} />,
-      color: "text-black",
-    },
-    {
-      id: 3,
-      platform: "Portfolio",
-      username: "www.johndoe.dev",
-      icon: <Globe size={20} />,
-      color: "text-green-600",
-    },
-    {
-      id: 4,
-      platform: "LeetCode",
-      username: "leetcode.com/johndoe",
-      icon: <Code2 size={20} />,
-      color: "text-orange-500",
-    },
-    {
-      id: 5,
-      platform: "HackerRank",
-      username: "hackerrank.com/johndoe",
-      icon: <Trophy size={20} />,
-      color: "text-emerald-600",
-    },
-  ];
-  
-  function SocialLinks() {
-    return (
-      <section className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-sm">
-  
-        <div className="mb-8 flex items-center justify-between">
-  
-          <div>
-  
-            <h2 className="text-2xl font-bold text-neutral-900">
-              Social Profiles
-            </h2>
-  
-            <p className="mt-2 text-neutral-600">
-              Connect your professional coding and networking profiles.
-            </p>
-  
-          </div>
-  
-          <button className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-3 font-medium text-white transition hover:scale-[1.02]">
-  
-            Add Profile
-  
-          </button>
-  
+  BriefcaseBusiness,
+  Code2,
+  Globe,
+  ExternalLink,
+  Pencil,
+} from "lucide-react";
+
+const socialLinks = [
+  {
+    id: 1,
+    name: "LinkedIn",
+    username: "linkedin.com/in/karthigayan",
+    url: "#",
+    icon: BriefcaseBusiness,
+    iconStyle: "bg-blue-100 text-blue-700",
+  },
+  {
+    id: 2,
+    name: "GitHub",
+    username: "github.com/karthigayan",
+    url: "#",
+    icon: Code2,
+    iconStyle: "bg-neutral-100 text-neutral-800",
+  },
+  {
+    id: 3,
+    name: "Portfolio",
+    username: "karthigayan.dev",
+    url: "#",
+    icon: Globe,
+    iconStyle: "bg-green-100 text-green-700",
+  },
+];
+
+function SocialLinks() {
+  return (
+    <section className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-sm">
+      <div className="mb-8 flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-neutral-900">
+            Social Links
+          </h2>
+
+          <p className="mt-2 text-neutral-600">
+            Add your professional profiles and portfolio.
+          </p>
         </div>
-  
-        <div className="grid gap-5 md:grid-cols-2">
-  
-          {socialLinks.map((item) => (
-  
-            <div
-              key={item.id}
-              className="flex items-center justify-between rounded-xl border border-neutral-200 p-5 transition hover:border-blue-300 hover:shadow-md"
+
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition hover:bg-neutral-100"
+        >
+          <Pencil size={17} />
+          Edit
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        {socialLinks.map((link) => {
+          const Icon = link.icon;
+
+          return (
+            <a
+              key={link.id}
+              href={link.url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-between gap-4 rounded-xl border border-neutral-200 p-5 transition hover:border-blue-300 hover:bg-blue-50/40"
             >
-  
-              <div className="flex items-center gap-4">
-  
-                <div className={item.color}>
-                  {item.icon}
+              <div className="flex min-w-0 items-center gap-4">
+                <div
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${link.iconStyle}`}
+                >
+                  <Icon size={23} />
                 </div>
-  
-                <div>
-  
+
+                <div className="min-w-0">
                   <h3 className="font-semibold text-neutral-900">
-                    {item.platform}
+                    {link.name}
                   </h3>
-  
-                  <p className="text-sm text-neutral-500">
-                    {item.username}
+
+                  <p className="mt-1 truncate text-sm text-neutral-600">
+                    {link.username}
                   </p>
-  
                 </div>
-  
               </div>
-  
-              <button className="rounded-lg border border-neutral-200 p-2 transition hover:bg-neutral-100">
-  
-                <Pencil size={18} />
-  
-              </button>
-  
-            </div>
-  
-          ))}
-  
-        </div>
-  
-      </section>
-    );
-  }
-  
-  export default SocialLinks;
+
+              <ExternalLink
+                size={19}
+                className="shrink-0 text-neutral-500"
+              />
+            </a>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+export default SocialLinks;

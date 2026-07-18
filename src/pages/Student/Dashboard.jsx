@@ -4,7 +4,7 @@ import ProfileCompletion from "../../components/student/ProfileCompletion";
 import RecommendedJobs from "../../components/student/RecommendedJobs";
 import UpcomingDrives from "../../components/student/UpcomingDrives";
 import RecentApplications from "../../components/student/RecentApplications";
-import NotificationsFeed from "../../components/student/NotificationsFeed";
+import NotificationFeed from "../../components/student/NotificationFeed";
 
 function Dashboard() {
   return (
@@ -30,7 +30,7 @@ function Dashboard() {
 
           <ProfileCompletion />
 
-          <NotificationsFeed />
+          <NotificationFeed />
 
         </div>
 

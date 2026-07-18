@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import applicationsData from "../../data/applications";
+import applicationsData from "../../data/applications.js";
 
 import ApplicationsHero from "../../components/student/applications/ApplicationsHero";
 import ApplicationsStats from "../../components/student/applications/ApplicationsStats";
@@ -12,10 +12,6 @@ import ApplicationPagination from "../../components/student/applications/Applica
 import ApplicationDetailsModal from "../../components/student/applications/ApplicationDetailsModal";
 
 function Applications() {
-  // ============================
-  // State
-  // ============================
-
   const [search, setSearch] = useState("");
 
   const [filters, setFilters] = useState({
@@ -26,27 +22,17 @@ function Applications() {
 
   const [selectedApplication, setSelectedApplication] = useState(null);
 
-  // ============================
-  // Filter Logic
-  // ============================
-
   const filteredApplications = useMemo(() => {
     return applicationsData.filter((application) => {
       const matchesSearch =
-        application.company
-          .toLowerCase()
-          .includes(search.toLowerCase()) ||
-        application.role
-          .toLowerCase()
-          .includes(search.toLowerCase());
+        application.company.toLowerCase().includes(search.toLowerCase()) ||
+        application.role.toLowerCase().includes(search.toLowerCase());
 
       const matchesStatus =
-        filters.status === "" ||
-        application.status === filters.status;
+        filters.status === "" || application.status === filters.status;
 
       const matchesMode =
-        filters.mode === "" ||
-        application.mode === filters.mode;
+        filters.mode === "" || application.mode === filters.mode;
 
       const matchesLocation =
         filters.location === "" ||
@@ -65,32 +51,16 @@ function Applications() {
 
   return (
     <div className="space-y-8">
-
-      {/* Hero */}
-
       <ApplicationsHero />
 
-      {/* Statistics */}
+      <ApplicationsStats applications={filteredApplications} />
 
-      <ApplicationsStats
-        applications={filteredApplications}
-      />
-
-      {/* Search */}
-
-      <ApplicationSearch
-        search={search}
-        setSearch={setSearch}
-      />
-
-      {/* Filters */}
+      <ApplicationSearch search={search} setSearch={setSearch} />
 
       <ApplicationFilters
         filters={filters}
         setFilters={setFilters}
       />
-
-      {/* Applications */}
 
       {filteredApplications.length > 0 ? (
         <>
@@ -105,15 +75,12 @@ function Applications() {
         <EmptyApplications />
       )}
 
-      {/* Details Modal */}
-
       {selectedApplication && (
         <ApplicationDetailsModal
           application={selectedApplication}
           onClose={() => setSelectedApplication(null)}
         />
       )}
-
     </div>
   );
 }

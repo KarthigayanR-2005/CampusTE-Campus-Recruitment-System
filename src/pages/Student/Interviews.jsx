@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { interviews } from "../../data/interviews";
+import interviews from "../../data/interviews";
 
 import InterviewsHero from "../../components/student/interviews/InterviewsHero";
 import InterviewStats from "../../components/student/interviews/InterviewStats";
@@ -18,7 +18,6 @@ function Interviews() {
   const [roundFilter, setRoundFilter] = useState("All");
 
   const [selectedInterview, setSelectedInterview] = useState(null);
-
   const [currentPage, setCurrentPage] = useState(1);
 
   const interviewsPerPage = 6;
@@ -31,16 +30,13 @@ function Interviews() {
           .includes(searchTerm.toLowerCase());
 
       const matchesStatus =
-        statusFilter === "All" ||
-        interview.status === statusFilter;
+        statusFilter === "All" || interview.status === statusFilter;
 
       const matchesMode =
-        modeFilter === "All" ||
-        interview.mode === modeFilter;
+        modeFilter === "All" || interview.mode === modeFilter;
 
       const matchesRound =
-        roundFilter === "All" ||
-        interview.round === roundFilter;
+        roundFilter === "All" || interview.round === roundFilter;
 
       return (
         matchesSearch &&
@@ -67,7 +63,6 @@ function Interviews() {
 
   return (
     <div className="space-y-8">
-
       <InterviewsHero />
 
       <InterviewStats interviews={interviews} />
@@ -113,7 +108,6 @@ function Interviews() {
         interview={selectedInterview}
         onClose={() => setSelectedInterview(null)}
       />
-
     </div>
   );
 }
