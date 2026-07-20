@@ -34,7 +34,7 @@ const navigationItems = [
   },
   {
     name: "Placement Drives",
-    path: "/placement-officer/drives",
+    path: "/placement-officer/placement-drives",
     icon: BriefcaseBusiness,
   },
   {
@@ -163,13 +163,13 @@ function PlacementOfficerLayout() {
         </nav>
 
         <div className="border-t border-neutral-200 p-4">
-          <button
-            type="button"
+          <NavLink
+            to="/login"
             className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
           >
             <LogOut size={19} />
             Logout
-          </button>
+          </NavLink>
         </div>
       </aside>
 
@@ -191,21 +191,22 @@ function PlacementOfficerLayout() {
               </h1>
 
               <p className="hidden text-sm text-neutral-500 sm:block">
-                Manage students, recruiters and campus placement activities
+                Manage students, recruiters and campus placement
+                activities
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
+            <NavLink
+              to="/placement-officer/notifications"
               className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-neutral-200 text-neutral-600 transition hover:bg-neutral-100"
               aria-label="Notifications"
             >
               <Bell size={20} />
 
               <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border-2 border-white bg-rose-500" />
-            </button>
+            </NavLink>
 
             <div className="hidden items-center gap-3 rounded-xl border border-neutral-200 px-3 py-2 sm:flex">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-purple-600 text-sm font-bold text-white">
