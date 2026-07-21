@@ -12,7 +12,11 @@ import {
   GraduationCap,
   LogOut,
 } from "lucide-react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import {
+  NavLink,
+  Outlet,
+  useNavigate,
+} from "react-router-dom";
 
 const navigationItems = [
   {
@@ -59,14 +63,31 @@ const navigationItems = [
 
 function StudentLayout() {
   const navigate = useNavigate();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const [isSidebarOpen, setIsSidebarOpen] =
+    useState(false);
 
   const closeSidebar = () => {
     setIsSidebarOpen(false);
   };
 
   const handleLogout = () => {
-    navigate("/login");
+    const confirmed = window.confirm(
+      "Are you sure you want to log out?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    localStorage.removeItem("campusteUser");
+    sessionStorage.removeItem("campusteUser");
+
+    setIsSidebarOpen(false);
+
+    navigate("/login", {
+      replace: true,
+    });
   };
 
   return (
@@ -82,13 +103,18 @@ function StudentLayout() {
 
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-neutral-200 bg-white transition-transform duration-300 lg:translate-x-0 ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          isSidebarOpen
+            ? "translate-x-0"
+            : "-translate-x-full"
         }`}
       >
         <div className="flex h-20 items-center justify-between border-b border-neutral-200 px-6">
           <button
             type="button"
-            onClick={() => navigate("/student/dashboard")}
+            onClick={() => {
+              closeSidebar();
+              navigate("/student/dashboard");
+            }}
             className="flex items-center gap-3"
           >
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 font-bold text-white">
@@ -96,8 +122,13 @@ function StudentLayout() {
             </div>
 
             <div className="text-left">
-              <h1 className="text-xl font-bold text-neutral-900">CampusTE</h1>
-              <p className="text-xs text-neutral-500">Student Portal</p>
+              <h1 className="text-xl font-bold text-neutral-900">
+                CampusTE
+              </h1>
+
+              <p className="text-xs text-neutral-500">
+                Student Portal
+              </p>
             </div>
           </button>
 
@@ -145,6 +176,7 @@ function StudentLayout() {
               <p className="truncate font-semibold text-neutral-900">
                 Karthigayan
               </p>
+
               <p className="truncate text-xs text-neutral-500">
                 Student Account
               </p>
@@ -154,7 +186,7 @@ function StudentLayout() {
           <button
             type="button"
             onClick={handleLogout}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-300 px-4 py-3 font-semibold text-neutral-700 transition hover:bg-neutral-100"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-300 px-4 py-3 font-semibold text-neutral-700 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
           >
             <LogOut size={18} />
             Log Out
@@ -175,7 +207,10 @@ function StudentLayout() {
             </button>
 
             <div>
-              <p className="text-sm text-neutral-500">Welcome back</p>
+              <p className="text-sm text-neutral-500">
+                Welcome back
+              </p>
+
               <h2 className="font-bold text-neutral-900">
                 Student Placement Portal
               </h2>
@@ -184,7 +219,9 @@ function StudentLayout() {
 
           <button
             type="button"
-            onClick={() => navigate("/student/notifications")}
+            onClick={() =>
+              navigate("/student/notifications")
+            }
             className="relative rounded-xl border border-neutral-200 p-3 text-neutral-600 transition hover:bg-neutral-100"
             aria-label="Open notifications"
           >

@@ -102,7 +102,15 @@ function AdminLayout() {
       return;
     }
 
-    navigate("/login");
+    localStorage.removeItem("campusteUser");
+    sessionStorage.removeItem("campusteUser");
+
+    setIsSidebarOpen(false);
+    setIsProfileMenuOpen(false);
+
+    navigate("/login", {
+      replace: true,
+    });
   };
 
   return (
@@ -126,7 +134,10 @@ function AdminLayout() {
         <div className="flex h-20 items-center justify-between border-b border-neutral-200 px-6">
           <button
             type="button"
-            onClick={() => navigate("/admin/dashboard")}
+            onClick={() => {
+              closeSidebar();
+              navigate("/admin/dashboard");
+            }}
             className="flex items-center gap-3 text-left"
           >
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-700 via-indigo-700 to-purple-700 text-white shadow-md">
@@ -284,7 +295,9 @@ function AdminLayout() {
 
             <button
               type="button"
-              onClick={() => navigate("/admin/notifications")}
+              onClick={() =>
+                navigate("/admin/notifications")
+              }
               className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-neutral-200 text-neutral-600 transition hover:bg-neutral-100"
               aria-label="Open notifications"
             >
@@ -305,6 +318,7 @@ function AdminLayout() {
                 }
                 className="flex items-center gap-3 rounded-xl border border-transparent p-1.5 transition hover:border-neutral-200 hover:bg-neutral-50"
                 aria-expanded={isProfileMenuOpen}
+                aria-haspopup="menu"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-700 to-purple-700 text-sm font-bold text-white">
                   SA
@@ -329,7 +343,10 @@ function AdminLayout() {
               </button>
 
               {isProfileMenuOpen && (
-                <div className="absolute right-0 top-14 z-40 w-72 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-2 shadow-xl">
+                <div
+                  role="menu"
+                  className="absolute right-0 top-14 z-40 w-72 overflow-hidden rounded-2xl border border-neutral-200 bg-white p-2 shadow-xl"
+                >
                   <div className="border-b border-neutral-100 px-3 py-3">
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-blue-700 to-purple-700 font-bold text-white">
