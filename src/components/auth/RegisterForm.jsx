@@ -5,11 +5,9 @@ import {
   EyeOff,
   LoaderCircle,
 } from "lucide-react";
-import {
-  Link,
-  useNavigate,
-} from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
+import { useAuth } from "../../context/AuthContext";
 import { registerRequest } from "../../services/authService";
 
 const initialFormData = {
@@ -23,6 +21,7 @@ const initialFormData = {
 
 function RegisterForm() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const [formData, setFormData] =
     useState(initialFormData);
@@ -65,7 +64,9 @@ function RegisterForm() {
   };
 
   const validateForm = () => {
-    const fullName = formData.fullName.trim();
+    const fullName =
+      formData.fullName.trim();
+
     const email = formData.email
       .trim()
       .toLowerCase();
@@ -87,7 +88,9 @@ function RegisterForm() {
     }
 
     if (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        email
+      )
     ) {
       return "Please enter a valid email address.";
     }
@@ -158,10 +161,16 @@ function RegisterForm() {
           role: formData.role,
         });
 
-      setSuccessMessage(response.message);
+      setSuccessMessage(
+        response.message ||
+          "Account created successfully."
+      );
+
       setFormData(initialFormData);
 
       window.setTimeout(() => {
+        logout();
+
         navigate("/login", {
           replace: true,
         });
@@ -174,6 +183,14 @@ function RegisterForm() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSignIn = () => {
+    logout();
+
+    navigate("/login", {
+      replace: true,
+    });
   };
 
   return (
@@ -445,12 +462,13 @@ function RegisterForm() {
       <p className="mt-8 text-center text-sm text-neutral-600">
         Already have an account?
 
-        <Link
-          to="/login"
+        <button
+          type="button"
+          onClick={handleSignIn}
           className="ml-2 font-semibold text-blue-600 hover:text-purple-600"
         >
           Sign In
-        </Link>
+        </button>
       </p>
     </div>
   );

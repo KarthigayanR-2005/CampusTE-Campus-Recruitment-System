@@ -7,9 +7,11 @@ dotenv.config();
 const [
   { testDatabaseConnection },
   { default: authRoutes },
+  { default: adminRoutes },
 ] = await Promise.all([
   import("./src/config/database.js"),
   import("./src/routes/authRoutes.js"),
+  import("./src/routes/adminRoutes.js"),
 ]);
 
 const app = express();
@@ -82,6 +84,11 @@ app.get(
 app.use(
   "/api/auth",
   authRoutes
+);
+
+app.use(
+  "/api/admin",
+  adminRoutes
 );
 
 app.use((request, response) => {
