@@ -21,34 +21,57 @@ function LoginForm() {
   const {
     user,
     login,
+    isAuthenticated,
+    isLoading,
     getDashboardPath,
   } = useAuth();
 
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    role: "student",
-    rememberMe: false,
-  });
+  const [formData, setFormData] =
+    useState({
+      email: "",
+      password: "",
+      rememberMe: false,
+    });
 
-  const [showPassword, setShowPassword] =
-    useState(false);
+  const [
+    showPassword,
+    setShowPassword,
+  ] = useState(false);
 
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
 
-  const [isSubmitting, setIsSubmitting] =
-    useState(false);
+  const [
+    isSubmitting,
+    setIsSubmitting,
+  ] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      navigate(getDashboardPath(user.role), {
-        replace: true,
-      });
+    if (
+      !isLoading &&
+      isAuthenticated &&
+      user
+    ) {
+      navigate(
+        getDashboardPath(user.role),
+        {
+          replace: true,
+        }
+      );
     }
-  }, [user, navigate, getDashboardPath]);
+  }, [
+    isLoading,
+    isAuthenticated,
+    user,
+    navigate,
+    getDashboardPath,
+  ]);
 
-  const handleInputChange = (event) => {
+  const handleInputChange = (
+    event
+  ) => {
     const {
       name,
       value,
@@ -56,22 +79,31 @@ function LoginForm() {
       checked,
     } = event.target;
 
-    setFormData((previousData) => ({
-      ...previousData,
-      [name]:
-        type === "checkbox"
-          ? checked
-          : value,
-    }));
+    setFormData(
+      (previousData) => ({
+        ...previousData,
+        [name]:
+          type === "checkbox"
+            ? checked
+            : value,
+      })
+    );
 
     setErrorMessage("");
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (
+    event
+  ) => {
     event.preventDefault();
 
-    const email = formData.email.trim();
-    const password = formData.password.trim();
+    const email =
+      formData.email
+        .trim()
+        .toLowerCase();
+
+    const password =
+      formData.password;
 
     if (!email) {
       setErrorMessage(
@@ -94,50 +126,46 @@ function LoginForm() {
       return;
     }
 
-    if (password.length < 6) {
-      setErrorMessage(
-        "Password must contain at least 6 characters."
-      );
-      return;
-    }
-
-    const dashboardPath =
-      ROLE_DASHBOARD_ROUTES[formData.role];
-
-    if (!dashboardPath) {
-      setErrorMessage(
-        "Please select a valid account role."
-      );
-      return;
-    }
-
     setIsSubmitting(true);
+    setErrorMessage("");
 
-    login({
-      email,
-      role: formData.role,
-      rememberMe: formData.rememberMe,
-    });
+    try {
+      const authenticatedUser =
+        await login({
+          email,
+          password,
+          rememberMe:
+            formData.rememberMe,
+        });
 
-    const requestedPath =
-      location.state?.from;
+      const dashboardPath =
+        ROLE_DASHBOARD_ROUTES[
+          authenticatedUser.role
+        ];
 
-    const portalPrefix =
-      dashboardPath.replace(
-        "/dashboard",
-        ""
-      );
+      if (!dashboardPath) {
+        throw new Error(
+          "Your account has an unsupported role."
+        );
+      }
 
-    const requestedPathMatchesRole =
-      requestedPath &&
-      (
-        requestedPath === portalPrefix ||
-        requestedPath.startsWith(
-          `${portalPrefix}/`
-        )
-      );
+      const requestedPath =
+        location.state?.from;
 
-    window.setTimeout(() => {
+      const portalPrefix =
+        dashboardPath.replace(
+          "/dashboard",
+          ""
+        );
+
+      const requestedPathMatchesRole =
+        requestedPath &&
+        (requestedPath ===
+          portalPrefix ||
+          requestedPath.startsWith(
+            `${portalPrefix}/`
+          ));
+
       navigate(
         requestedPathMatchesRole
           ? requestedPath
@@ -146,12 +174,19 @@ function LoginForm() {
           replace: true,
         }
       );
-    }, 400);
+    } catch (error) {
+      setErrorMessage(
+        error.message ||
+          "Unable to log in."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleGoogleLogin = () => {
     setErrorMessage(
-      "Google authentication will be connected when the backend is added."
+      "Google authentication has not been connected yet."
     );
   };
 
@@ -163,7 +198,8 @@ function LoginForm() {
         </h1>
 
         <p className="mt-2 text-neutral-600">
-          Sign in to continue to CampusTE.
+          Sign in using your registered
+          CampusTE account.
         </p>
       </div>
 
@@ -182,39 +218,6 @@ function LoginForm() {
       >
         <div>
           <label
-            htmlFor="role"
-            className="mb-2 block text-sm font-semibold text-neutral-700"
-          >
-            Sign In As
-          </label>
-
-          <select
-            id="role"
-            name="role"
-            value={formData.role}
-            onChange={handleInputChange}
-            className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 outline-none transition duration-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-          >
-            <option value="student">
-              Student
-            </option>
-
-            <option value="recruiter">
-              Recruiter
-            </option>
-
-            <option value="placementOfficer">
-              Placement Officer
-            </option>
-
-            <option value="admin">
-              Administrator
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label
             htmlFor="email"
             className="mb-2 block text-sm font-semibold text-neutral-700"
           >
@@ -226,10 +229,13 @@ function LoginForm() {
             name="email"
             type="email"
             value={formData.email}
-            onChange={handleInputChange}
-            placeholder="Enter your email"
+            onChange={
+              handleInputChange
+            }
+            placeholder="Enter your registered email"
             autoComplete="email"
-            className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none transition duration-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+            disabled={isSubmitting}
+            className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none transition duration-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-neutral-100"
           />
         </div>
 
@@ -250,22 +256,28 @@ function LoginForm() {
                   ? "text"
                   : "password"
               }
-              value={formData.password}
-              onChange={handleInputChange}
+              value={
+                formData.password
+              }
+              onChange={
+                handleInputChange
+              }
               placeholder="Enter your password"
               autoComplete="current-password"
-              className="w-full rounded-xl border border-neutral-300 px-4 py-3 pr-16 outline-none transition duration-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+              disabled={isSubmitting}
+              className="w-full rounded-xl border border-neutral-300 px-4 py-3 pr-16 outline-none transition duration-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-neutral-100"
             />
 
             <button
               type="button"
+              disabled={isSubmitting}
               onClick={() =>
                 setShowPassword(
                   (previousValue) =>
                     !previousValue
                 )
               }
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-blue-600 hover:text-purple-600"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-blue-600 hover:text-purple-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {showPassword
                 ? "Hide"
@@ -282,7 +294,10 @@ function LoginForm() {
               checked={
                 formData.rememberMe
               }
-              onChange={handleInputChange}
+              onChange={
+                handleInputChange
+              }
+              disabled={isSubmitting}
               className="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
             />
 
@@ -321,7 +336,8 @@ function LoginForm() {
       <button
         type="button"
         onClick={handleGoogleLogin}
-        className="flex w-full items-center justify-center gap-3 rounded-xl border border-neutral-300 py-3 font-medium transition duration-300 hover:bg-neutral-50"
+        disabled={isSubmitting}
+        className="flex w-full items-center justify-center gap-3 rounded-xl border border-neutral-300 py-3 font-medium transition duration-300 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <span aria-hidden="true">
           🌐

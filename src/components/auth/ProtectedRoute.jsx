@@ -8,9 +8,35 @@ import {
     useAuth,
   } from "../../context/AuthContext";
   
-  function ProtectedRoute({ allowedRole, children }) {
+  function LoadingScreen() {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-neutral-50">
+        <div className="text-center">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-neutral-200 border-t-blue-600" />
+  
+          <p className="mt-4 font-semibold text-neutral-700">
+            Verifying your session...
+          </p>
+        </div>
+      </div>
+    );
+  }
+  
+  function ProtectedRoute({
+    allowedRole,
+    children,
+  }) {
     const location = useLocation();
-    const { user, isAuthenticated } = useAuth();
+  
+    const {
+      user,
+      isAuthenticated,
+      isLoading,
+    } = useAuth();
+  
+    if (isLoading) {
+      return <LoadingScreen />;
+    }
   
     if (!isAuthenticated) {
       return (
@@ -24,15 +50,18 @@ import {
       );
     }
   
-    const allowedRoles = Array.isArray(allowedRole)
-      ? allowedRole
-      : [allowedRole];
+    const allowedRoles =
+      Array.isArray(allowedRole)
+        ? allowedRole
+        : [allowedRole];
   
-    const hasPermission = allowedRoles.includes(user.role);
-  
-    if (!hasPermission) {
+    if (
+      !allowedRoles.includes(user.role)
+    ) {
       const correctDashboard =
-        ROLE_DASHBOARD_ROUTES[user.role] || "/login";
+        ROLE_DASHBOARD_ROUTES[
+          user.role
+        ] || "/login";
   
       return (
         <Navigate
