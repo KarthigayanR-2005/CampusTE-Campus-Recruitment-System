@@ -22,6 +22,8 @@ import {
   useNavigate,
 } from "react-router-dom";
 
+import { useAuth } from "../context/AuthContext";
+
 const navigationItems = [
   {
     label: "Dashboard",
@@ -74,8 +76,11 @@ const navigationItems = [
 function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuth();
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] =
+    useState(false);
+
   const [isProfileMenuOpen, setIsProfileMenuOpen] =
     useState(false);
 
@@ -102,8 +107,7 @@ function AdminLayout() {
       return;
     }
 
-    localStorage.removeItem("campusteUser");
-    sessionStorage.removeItem("campusteUser");
+    logout();
 
     setIsSidebarOpen(false);
     setIsProfileMenuOpen(false);
@@ -178,7 +182,7 @@ function AdminLayout() {
                 </p>
 
                 <p className="mt-1 truncate text-xs text-neutral-500">
-                  Super Admin Account
+                  {user?.email || "Super Admin Account"}
                 </p>
               </div>
             </div>
@@ -359,7 +363,7 @@ function AdminLayout() {
                         </p>
 
                         <p className="mt-1 truncate text-sm text-neutral-500">
-                          admin@campuste.edu
+                          {user?.email || "admin@campuste.edu"}
                         </p>
                       </div>
                     </div>

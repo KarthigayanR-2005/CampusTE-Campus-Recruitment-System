@@ -18,6 +18,8 @@ import {
   useNavigate,
 } from "react-router-dom";
 
+import { useAuth } from "../context/AuthContext";
+
 const navigationItems = [
   {
     label: "Dashboard",
@@ -63,6 +65,7 @@ const navigationItems = [
 
 function StudentLayout() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const [isSidebarOpen, setIsSidebarOpen] =
     useState(false);
@@ -80,9 +83,7 @@ function StudentLayout() {
       return;
     }
 
-    localStorage.removeItem("campusteUser");
-    sessionStorage.removeItem("campusteUser");
-
+    logout();
     setIsSidebarOpen(false);
 
     navigate("/login", {
@@ -178,7 +179,7 @@ function StudentLayout() {
               </p>
 
               <p className="truncate text-xs text-neutral-500">
-                Student Account
+                {user?.email || "Student Account"}
               </p>
             </div>
           </div>

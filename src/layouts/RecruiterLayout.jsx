@@ -1,17 +1,16 @@
 import { useState } from "react";
 import {
   LayoutDashboard,
-  Building2,
+  User,
   BriefcaseBusiness,
-  Users,
+  FileText,
   CalendarDays,
   Bell,
   Settings,
   Menu,
   X,
-  UserSearch,
+  GraduationCap,
   LogOut,
-  PlusCircle,
 } from "lucide-react";
 import {
   NavLink,
@@ -19,56 +18,54 @@ import {
   useNavigate,
 } from "react-router-dom";
 
+import { useAuth } from "../context/AuthContext";
+
 const navigationItems = [
   {
     label: "Dashboard",
-    path: "/recruiter/dashboard",
+    path: "/student/dashboard",
     icon: LayoutDashboard,
   },
   {
-    label: "Company Profile",
-    path: "/recruiter/company-profile",
-    icon: Building2,
+    label: "Profile",
+    path: "/student/profile",
+    icon: User,
   },
   {
-    label: "Post Job",
-    path: "/recruiter/post-job",
-    icon: PlusCircle,
-  },
-  {
-    label: "Manage Jobs",
-    path: "/recruiter/manage-jobs",
+    label: "Jobs",
+    path: "/student/jobs",
     icon: BriefcaseBusiness,
   },
   {
-    label: "Applicants",
-    path: "/recruiter/applicants",
-    icon: Users,
-  },
-  {
-    label: "Candidate Search",
-    path: "/recruiter/candidates",
-    icon: UserSearch,
+    label: "Applications",
+    path: "/student/applications",
+    icon: FileText,
   },
   {
     label: "Interviews",
-    path: "/recruiter/interviews",
+    path: "/student/interviews",
     icon: CalendarDays,
   },
   {
     label: "Notifications",
-    path: "/recruiter/notifications",
+    path: "/student/notifications",
     icon: Bell,
   },
   {
+    label: "Resume",
+    path: "/student/resume",
+    icon: GraduationCap,
+  },
+  {
     label: "Settings",
-    path: "/recruiter/settings",
+    path: "/student/settings",
     icon: Settings,
   },
 ];
 
-function RecruiterLayout() {
+function StudentLayout() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const [isSidebarOpen, setIsSidebarOpen] =
     useState(false);
@@ -86,9 +83,7 @@ function RecruiterLayout() {
       return;
     }
 
-    localStorage.removeItem("campusteUser");
-    sessionStorage.removeItem("campusteUser");
-
+    logout();
     setIsSidebarOpen(false);
 
     navigate("/login", {
@@ -119,7 +114,7 @@ function RecruiterLayout() {
             type="button"
             onClick={() => {
               closeSidebar();
-              navigate("/recruiter/dashboard");
+              navigate("/student/dashboard");
             }}
             className="flex items-center gap-3"
           >
@@ -133,7 +128,7 @@ function RecruiterLayout() {
               </h1>
 
               <p className="text-xs text-neutral-500">
-                Recruiter Portal
+                Student Portal
               </p>
             </div>
           </button>
@@ -174,17 +169,17 @@ function RecruiterLayout() {
 
         <div className="border-t border-neutral-200 p-4">
           <div className="mb-4 flex items-center gap-3 rounded-xl bg-neutral-50 p-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-purple-100 font-bold text-purple-700">
-              RS
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">
+              RK
             </div>
 
             <div className="min-w-0">
               <p className="truncate font-semibold text-neutral-900">
-                Recruiter Name
+                Karthigayan
               </p>
 
               <p className="truncate text-xs text-neutral-500">
-                Recruiter Account
+                {user?.email || "Student Account"}
               </p>
             </div>
           </div>
@@ -218,7 +213,7 @@ function RecruiterLayout() {
               </p>
 
               <h2 className="font-bold text-neutral-900">
-                Recruiter Management Portal
+                Student Placement Portal
               </h2>
             </div>
           </div>
@@ -226,7 +221,7 @@ function RecruiterLayout() {
           <button
             type="button"
             onClick={() =>
-              navigate("/recruiter/notifications")
+              navigate("/student/notifications")
             }
             className="relative rounded-xl border border-neutral-200 p-3 text-neutral-600 transition hover:bg-neutral-100"
             aria-label="Open notifications"
@@ -245,4 +240,4 @@ function RecruiterLayout() {
   );
 }
 
-export default RecruiterLayout;
+export default StudentLayout;

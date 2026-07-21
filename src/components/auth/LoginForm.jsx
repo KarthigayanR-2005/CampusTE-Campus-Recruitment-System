@@ -1,15 +1,28 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import {
+  useEffect,
+  useState,
+} from "react";
 
-const dashboardRoutes = {
-  student: "/student/dashboard",
-  recruiter: "/recruiter/dashboard",
-  placementOfficer: "/placement-officer/dashboard",
-  admin: "/admin/dashboard",
-};
+import {
+  Link,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  ROLE_DASHBOARD_ROUTES,
+  useAuth,
+} from "../../context/AuthContext";
 
 function LoginForm() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const {
+    user,
+    login,
+    getDashboardPath,
+  } = useAuth();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -18,16 +31,37 @@ function LoginForm() {
     rememberMe: false,
   });
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const [errorMessage, setErrorMessage] =
+    useState("");
+
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
+
+  useEffect(() => {
+    if (user) {
+      navigate(getDashboardPath(user.role), {
+        replace: true,
+      });
+    }
+  }, [user, navigate, getDashboardPath]);
 
   const handleInputChange = (event) => {
-    const { name, value, type, checked } = event.target;
+    const {
+      name,
+      value,
+      type,
+      checked,
+    } = event.target;
 
     setFormData((previousData) => ({
       ...previousData,
-      [name]: type === "checkbox" ? checked : value,
+      [name]:
+        type === "checkbox"
+          ? checked
+          : value,
     }));
 
     setErrorMessage("");
@@ -40,17 +74,23 @@ function LoginForm() {
     const password = formData.password.trim();
 
     if (!email) {
-      setErrorMessage("Please enter your email address.");
+      setErrorMessage(
+        "Please enter your email address."
+      );
       return;
     }
 
     if (!email.includes("@")) {
-      setErrorMessage("Please enter a valid email address.");
+      setErrorMessage(
+        "Please enter a valid email address."
+      );
       return;
     }
 
     if (!password) {
-      setErrorMessage("Please enter your password.");
+      setErrorMessage(
+        "Please enter your password."
+      );
       return;
     }
 
@@ -61,37 +101,52 @@ function LoginForm() {
       return;
     }
 
-    const selectedDashboard = dashboardRoutes[formData.role];
+    const dashboardPath =
+      ROLE_DASHBOARD_ROUTES[formData.role];
 
-    if (!selectedDashboard) {
-      setErrorMessage("Please select a valid account role.");
+    if (!dashboardPath) {
+      setErrorMessage(
+        "Please select a valid account role."
+      );
       return;
     }
 
     setIsSubmitting(true);
 
-    const loginData = {
+    login({
       email,
       role: formData.role,
       rememberMe: formData.rememberMe,
-    };
+    });
 
-    if (formData.rememberMe) {
-      localStorage.setItem(
-        "campusteUser",
-        JSON.stringify(loginData)
+    const requestedPath =
+      location.state?.from;
+
+    const portalPrefix =
+      dashboardPath.replace(
+        "/dashboard",
+        ""
       );
-    } else {
-      sessionStorage.setItem(
-        "campusteUser",
-        JSON.stringify(loginData)
+
+    const requestedPathMatchesRole =
+      requestedPath &&
+      (
+        requestedPath === portalPrefix ||
+        requestedPath.startsWith(
+          `${portalPrefix}/`
+        )
       );
-    }
 
     window.setTimeout(() => {
-      setIsSubmitting(false);
-      navigate(selectedDashboard);
-    }, 500);
+      navigate(
+        requestedPathMatchesRole
+          ? requestedPath
+          : dashboardPath,
+        {
+          replace: true,
+        }
+      );
+    }, 400);
   };
 
   const handleGoogleLogin = () => {
@@ -121,9 +176,10 @@ function LoginForm() {
         </div>
       )}
 
-      <form className="space-y-6" onSubmit={handleSubmit}>
-        {/* Role */}
-
+      <form
+        className="space-y-6"
+        onSubmit={handleSubmit}
+      >
         <div>
           <label
             htmlFor="role"
@@ -139,18 +195,23 @@ function LoginForm() {
             onChange={handleInputChange}
             className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 outline-none transition duration-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
           >
-            <option value="student">Student</option>
-            <option value="recruiter">Recruiter</option>
+            <option value="student">
+              Student
+            </option>
+
+            <option value="recruiter">
+              Recruiter
+            </option>
 
             <option value="placementOfficer">
               Placement Officer
             </option>
 
-            <option value="admin">Administrator</option>
+            <option value="admin">
+              Administrator
+            </option>
           </select>
         </div>
-
-        {/* Email */}
 
         <div>
           <label
@@ -172,8 +233,6 @@ function LoginForm() {
           />
         </div>
 
-        {/* Password */}
-
         <div>
           <label
             htmlFor="password"
@@ -186,7 +245,11 @@ function LoginForm() {
             <input
               id="password"
               name="password"
-              type={showPassword ? "text" : "password"}
+              type={
+                showPassword
+                  ? "text"
+                  : "password"
+              }
               value={formData.password}
               onChange={handleInputChange}
               placeholder="Enter your password"
@@ -198,24 +261,27 @@ function LoginForm() {
               type="button"
               onClick={() =>
                 setShowPassword(
-                  (previousValue) => !previousValue
+                  (previousValue) =>
+                    !previousValue
                 )
               }
               className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-blue-600 hover:text-purple-600"
             >
-              {showPassword ? "Hide" : "Show"}
+              {showPassword
+                ? "Hide"
+                : "Show"}
             </button>
           </div>
         </div>
-
-        {/* Remember Me */}
 
         <div className="flex items-center justify-between gap-4">
           <label className="flex items-center gap-2 text-sm text-neutral-600">
             <input
               type="checkbox"
               name="rememberMe"
-              checked={formData.rememberMe}
+              checked={
+                formData.rememberMe
+              }
               onChange={handleInputChange}
               className="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
             />
@@ -231,18 +297,16 @@ function LoginForm() {
           </Link>
         </div>
 
-        {/* Login Button */}
-
         <button
           type="submit"
           disabled={isSubmitting}
           className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 py-3 font-semibold text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
         >
-          {isSubmitting ? "Signing In..." : "Sign In"}
+          {isSubmitting
+            ? "Signing In..."
+            : "Sign In"}
         </button>
       </form>
-
-      {/* Divider */}
 
       <div className="my-8 flex items-center">
         <div className="h-px flex-1 bg-neutral-200" />
@@ -254,18 +318,17 @@ function LoginForm() {
         <div className="h-px flex-1 bg-neutral-200" />
       </div>
 
-      {/* Google */}
-
       <button
         type="button"
         onClick={handleGoogleLogin}
         className="flex w-full items-center justify-center gap-3 rounded-xl border border-neutral-300 py-3 font-medium transition duration-300 hover:bg-neutral-50"
       >
-        <span aria-hidden="true">🌐</span>
+        <span aria-hidden="true">
+          🌐
+        </span>
+
         Continue with Google
       </button>
-
-      {/* Register */}
 
       <p className="mt-8 text-center text-sm text-neutral-600">
         Don&apos;t have an account?
