@@ -4,11 +4,22 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const [
+  { testDatabaseConnection },
+  { default: authRoutes },
+] = await Promise.all([
+  import("./src/config/database.js"),
+  import("./src/routes/authRoutes.js"),
+]);
+
 const app = express();
 
-const PORT = process.env.PORT || 5000;
+const PORT =
+  Number(process.env.PORT) || 5000;
+
 const CLIENT_URL =
-  process.env.CLIENT_URL || "http://localhost:5173";
+  process.env.CLIENT_URL ||
+  "http://localhost:5173";
 
 app.use(
   cors({
@@ -22,18 +33,56 @@ app.use(express.json());
 app.get("/", (request, response) => {
   response.json({
     success: true,
-    message: "CampusTE backend server is running",
+    message:
+      "CampusTE backend server is running",
   });
 });
 
-app.get("/api/health", (request, response) => {
-  response.status(200).json({
-    success: true,
-    status: "healthy",
-    message: "CampusTE API is working",
-    timestamp: new Date().toISOString(),
-  });
-});
+app.get(
+  "/api/health",
+  async (request, response) => {
+    try {
+      const databaseStatus =
+        await testDatabaseConnection();
+
+      response.status(200).json({
+        success: true,
+        status: "healthy",
+        message:
+          "CampusTE API and database are working",
+        database: {
+          connected: true,
+          name:
+            databaseStatus.databaseName,
+          serverTime:
+            databaseStatus.serverTime,
+        },
+        timestamp:
+          new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error(
+        "Database health check failed:",
+        error.message
+      );
+
+      response.status(503).json({
+        success: false,
+        status: "unhealthy",
+        message:
+          "Database connection failed",
+        database: {
+          connected: false,
+        },
+      });
+    }
+  }
+);
+
+app.use(
+  "/api/auth",
+  authRoutes
+);
 
 app.use((request, response) => {
   response.status(404).json({
@@ -42,8 +91,28 @@ app.use((request, response) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(
-    `CampusTE backend running at http://localhost:${PORT}`
-  );
-});
+async function startServer() {
+  try {
+    const databaseStatus =
+      await testDatabaseConnection();
+
+    console.log(
+      `MySQL connected successfully to database: ${databaseStatus.databaseName}`
+    );
+
+    app.listen(PORT, () => {
+      console.log(
+        `CampusTE backend running at http://localhost:${PORT}`
+      );
+    });
+  } catch (error) {
+    console.error(
+      "Unable to connect to MySQL:",
+      error.message
+    );
+
+    process.exit(1);
+  }
+}
+
+startServer();
