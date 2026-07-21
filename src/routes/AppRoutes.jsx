@@ -5,6 +5,8 @@ import {
   Routes,
 } from "react-router-dom";
 
+import ProtectedRoute from "../components/auth/ProtectedRoute";
+
 import PublicLayout from "../layouts/PublicLayout";
 import AuthLayout from "../layouts/AuthLayout";
 import StudentLayout from "../layouts/StudentLayout";
@@ -85,7 +87,11 @@ function AppRoutes() {
         {/* Authentication */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+
+          <Route
+            path="/register"
+            element={<Register />}
+          />
 
           <Route
             path="/forgot-password"
@@ -104,40 +110,82 @@ function AppRoutes() {
         </Route>
 
         {/* Student Portal */}
-        <Route path="/student" element={<StudentLayout />}>
+        <Route
+          path="/student"
+          element={
+            <ProtectedRoute allowedRole="student">
+              <StudentLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route
             index
-            element={<Navigate to="dashboard" replace />}
+            element={
+              <Navigate
+                to="dashboard"
+                replace
+              />
+            }
           />
 
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="jobs" element={<Jobs />} />
+          <Route
+            path="dashboard"
+            element={<Dashboard />}
+          />
+
+          <Route
+            path="profile"
+            element={<Profile />}
+          />
+
+          <Route
+            path="jobs"
+            element={<Jobs />}
+          />
 
           <Route
             path="applications"
             element={<Applications />}
           />
 
-          <Route path="interviews" element={<Interviews />} />
+          <Route
+            path="interviews"
+            element={<Interviews />}
+          />
 
           <Route
             path="notifications"
             element={<Notifications />}
           />
 
-          <Route path="resume" element={<Resume />} />
-          <Route path="settings" element={<Settings />} />
+          <Route
+            path="resume"
+            element={<Resume />}
+          />
+
+          <Route
+            path="settings"
+            element={<Settings />}
+          />
         </Route>
 
         {/* Recruiter Portal */}
         <Route
           path="/recruiter"
-          element={<RecruiterLayout />}
+          element={
+            <ProtectedRoute allowedRole="recruiter">
+              <RecruiterLayout />
+            </ProtectedRoute>
+          }
         >
           <Route
             index
-            element={<Navigate to="dashboard" replace />}
+            element={
+              <Navigate
+                to="dashboard"
+                replace
+              />
+            }
           />
 
           <Route
@@ -150,14 +198,20 @@ function AppRoutes() {
             element={<CompanyProfile />}
           />
 
-          <Route path="post-job" element={<PostJob />} />
+          <Route
+            path="post-job"
+            element={<PostJob />}
+          />
 
           <Route
             path="manage-jobs"
             element={<ManageJobs />}
           />
 
-          <Route path="applicants" element={<Applicants />} />
+          <Route
+            path="applicants"
+            element={<Applicants />}
+          />
 
           <Route
             path="candidates"
@@ -183,11 +237,20 @@ function AppRoutes() {
         {/* Placement Officer Portal */}
         <Route
           path="/placement-officer"
-          element={<PlacementOfficerLayout />}
+          element={
+            <ProtectedRoute allowedRole="placementOfficer">
+              <PlacementOfficerLayout />
+            </ProtectedRoute>
+          }
         >
           <Route
             index
-            element={<Navigate to="dashboard" replace />}
+            element={
+              <Navigate
+                to="dashboard"
+                replace
+              />
+            }
           />
 
           <Route
@@ -237,10 +300,22 @@ function AppRoutes() {
         </Route>
 
         {/* Admin Portal */}
-        <Route path="/admin" element={<AdminLayout />}>
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRole="admin">
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route
             index
-            element={<Navigate to="dashboard" replace />}
+            element={
+              <Navigate
+                to="dashboard"
+                replace
+              />
+            }
           />
 
           <Route
@@ -248,7 +323,10 @@ function AppRoutes() {
             element={<AdminDashboard />}
           />
 
-          <Route path="users" element={<Users />} />
+          <Route
+            path="users"
+            element={<Users />}
+          />
 
           <Route
             path="institutions"
@@ -289,7 +367,12 @@ function AppRoutes() {
         {/* Unknown Route */}
         <Route
           path="*"
-          element={<Navigate to="/" replace />}
+          element={
+            <Navigate
+              to="/"
+              replace
+            />
+          }
         />
       </Routes>
     </BrowserRouter>
