@@ -20,6 +20,13 @@ import {
 } from "../controllers/studentProjectController.js";
 
 import {
+  addStudentCertification,
+  editStudentCertification,
+  getStudentCertifications,
+  removeStudentCertification,
+} from "../controllers/studentCertificationController.js";
+
+import {
   authenticate,
 } from "../middleware/authenticate.js";
 
@@ -35,6 +42,7 @@ studentRouter.use(
 );
 
 // Student profile
+
 studentRouter.get(
   "/profile",
   getStudentProfile
@@ -46,6 +54,7 @@ studentRouter.put(
 );
 
 // Student skills
+
 studentRouter.get(
   "/skills",
   getStudentSkills
@@ -67,6 +76,7 @@ studentRouter.delete(
 );
 
 // Student projects
+
 studentRouter.get(
   "/projects",
   getStudentProjects
@@ -85,6 +95,28 @@ studentRouter.put(
 studentRouter.delete(
   "/projects/:projectId",
   removeStudentProject
+);
+
+// Student certifications
+
+studentRouter.get(
+  "/certifications",
+  getStudentCertifications
+);
+
+studentRouter.post(
+  "/certifications",
+  addStudentCertification
+);
+
+studentRouter.put(
+  "/certifications/:certificationId",
+  editStudentCertification
+);
+
+studentRouter.delete(
+  "/certifications/:certificationId",
+  removeStudentCertification
 );
 
 export default studentRouter;

@@ -139,3 +139,59 @@ export function deleteStudentProjectRequest({
     }
   );
 }
+
+// Student certifications
+
+export function getStudentCertificationsRequest({
+  token,
+}) {
+  return apiRequest(
+    "/student/certifications",
+    {
+      method: "GET",
+      token,
+    }
+  );
+}
+
+export function createStudentCertificationRequest({
+  token,
+  certification,
+}) {
+  return apiRequest(
+    "/student/certifications",
+    {
+      method: "POST",
+      token,
+      body: certification,
+    }
+  );
+}
+
+export function updateStudentCertificationRequest({
+  token,
+  certificationId,
+  certification,
+}) {
+  return apiRequest(
+    `/student/certifications/${certificationId}`,
+    {
+      method: "PUT",
+      token,
+      body: certification,
+    }
+  );
+}
+
+export function deleteStudentCertificationRequest({
+  token,
+  certificationId,
+}) {
+  return apiRequest(
+    `/student/certifications/${certificationId}`,
+    {
+      method: "DELETE",
+      token,
+    }
+  );
+}
