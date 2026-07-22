@@ -1,7 +1,9 @@
 import { Router } from "express";
 
 import {
+  createPlacementOfficer,
   getPendingApprovals,
+  getPlacementOfficers,
   reviewUserApproval,
 } from "../controllers/adminController.js";
 
@@ -28,6 +30,16 @@ adminRouter.get(
 adminRouter.patch(
   "/approvals/:userId",
   reviewUserApproval
+);
+
+adminRouter.get(
+  "/placement-officers",
+  getPlacementOfficers
+);
+
+adminRouter.post(
+  "/placement-officers",
+  createPlacementOfficer
 );
 
 export default adminRouter;
