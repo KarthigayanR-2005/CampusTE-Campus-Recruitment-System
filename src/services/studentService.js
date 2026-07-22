@@ -83,3 +83,59 @@ export function deleteStudentSkillRequest({
     }
   );
 }
+
+// Student projects
+
+export function getStudentProjectsRequest({
+  token,
+}) {
+  return apiRequest(
+    "/student/projects",
+    {
+      method: "GET",
+      token,
+    }
+  );
+}
+
+export function createStudentProjectRequest({
+  token,
+  project,
+}) {
+  return apiRequest(
+    "/student/projects",
+    {
+      method: "POST",
+      token,
+      body: project,
+    }
+  );
+}
+
+export function updateStudentProjectRequest({
+  token,
+  projectId,
+  project,
+}) {
+  return apiRequest(
+    `/student/projects/${projectId}`,
+    {
+      method: "PUT",
+      token,
+      body: project,
+    }
+  );
+}
+
+export function deleteStudentProjectRequest({
+  token,
+  projectId,
+}) {
+  return apiRequest(
+    `/student/projects/${projectId}`,
+    {
+      method: "DELETE",
+      token,
+    }
+  );
+}

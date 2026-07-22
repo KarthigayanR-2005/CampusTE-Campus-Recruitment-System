@@ -13,6 +13,13 @@ import {
 } from "../controllers/studentSkillController.js";
 
 import {
+  addStudentProject,
+  editStudentProject,
+  getStudentProjects,
+  removeStudentProject,
+} from "../controllers/studentProjectController.js";
+
+import {
   authenticate,
 } from "../middleware/authenticate.js";
 
@@ -57,6 +64,27 @@ studentRouter.put(
 studentRouter.delete(
   "/skills/:skillId",
   removeStudentSkill
+);
+
+// Student projects
+studentRouter.get(
+  "/projects",
+  getStudentProjects
+);
+
+studentRouter.post(
+  "/projects",
+  addStudentProject
+);
+
+studentRouter.put(
+  "/projects/:projectId",
+  editStudentProject
+);
+
+studentRouter.delete(
+  "/projects/:projectId",
+  removeStudentProject
 );
 
 export default studentRouter;
