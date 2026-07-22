@@ -33,3 +33,29 @@ export function reviewApprovalRequest({
     }
   );
 }
+
+export function getPlacementOfficersRequest({
+  token,
+}) {
+  return apiRequest(
+    "/admin/placement-officers",
+    {
+      method: "GET",
+      token,
+    }
+  );
+}
+
+export function createPlacementOfficerRequest({
+  token,
+  officer,
+}) {
+  return apiRequest(
+    "/admin/placement-officers",
+    {
+      method: "POST",
+      token,
+      body: officer,
+    }
+  );
+}

@@ -1,123 +1,42 @@
-import { useMemo, useState } from "react";
 import {
-  Ban,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  AlertCircle,
   Building2,
   CheckCircle2,
   Download,
   Eye,
+  EyeOff,
+  LoaderCircle,
   Mail,
   MapPin,
   Plus,
+  RefreshCw,
   Search,
   ShieldCheck,
-  Trash2,
   UserCheck,
   UserCog,
   Users,
   X,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-const initialPlacementOfficers = [
-  {
-    id: 1,
-    name: "Dr. Meenakshi Rao",
-    email: "placement@campuste.edu",
-    phone: "+91 98844 77221",
-    employeeId: "PO-2026-001",
-    designation: "Director of Placements",
-    department: "Career Development Centre",
-    institution: "CampusTE Institute of Technology",
-    institutionCode: "CTE-CBE-001",
-    location: "Coimbatore, Tamil Nadu",
-    status: "Active",
-    verification: "Verified",
-    studentsManaged: 1248,
-    activeDrives: 18,
-    recruitersManaged: 86,
-    studentsPlaced: 539,
-    joinedDate: "2025-08-10",
-  },
-  {
-    id: 2,
-    name: "Prof. Arun Kumar",
-    email: "arun.kumar@greenfield.edu",
-    phone: "+91 97772 31145",
-    employeeId: "PO-2026-034",
-    designation: "Placement Officer",
-    department: "Training and Placement Cell",
-    institution: "Greenfield Institute of Technology",
-    institutionCode: "GIT-SLM-014",
-    location: "Salem, Tamil Nadu",
-    status: "Pending",
-    verification: "Pending",
-    studentsManaged: 0,
-    activeDrives: 0,
-    recruitersManaged: 0,
-    studentsPlaced: 0,
-    joinedDate: "2026-07-19",
-  },
-  {
-    id: 3,
-    name: "Dr. Ramesh Narayanan",
-    email: "ramesh.n@metroengineering.edu",
-    phone: "+91 94444 88110",
-    employeeId: "PO-2026-011",
-    designation: "Head of Placements",
-    department: "Placement and Corporate Relations",
-    institution: "Metro Engineering College",
-    institutionCode: "MEC-MDU-008",
-    location: "Madurai, Tamil Nadu",
-    status: "Active",
-    verification: "Verified",
-    studentsManaged: 1124,
-    activeDrives: 14,
-    recruitersManaged: 64,
-    studentsPlaced: 426,
-    joinedDate: "2025-06-25",
-  },
-  {
-    id: 4,
-    name: "Prof. Vikram Singh",
-    email: "vikram.singh@horizonuniversity.edu",
-    phone: "+91 99000 77665",
-    employeeId: "PO-2026-021",
-    designation: "Associate Director – Career Services",
-    department: "Career Services",
-    institution: "Horizon University",
-    institutionCode: "HU-BLR-021",
-    location: "Bengaluru, Karnataka",
-    status: "Active",
-    verification: "Verified",
-    studentsManaged: 2168,
-    activeDrives: 26,
-    recruitersManaged: 132,
-    studentsPlaced: 984,
-    joinedDate: "2025-03-20",
-  },
-  {
-    id: 5,
-    name: "Prof. Neha Kulkarni",
-    email: "neha.kulkarni@westerntech.edu",
-    phone: "+91 96660 44228",
-    employeeId: "PO-2026-031",
-    designation: "Training and Placement Officer",
-    department: "Training and Placement",
-    institution: "Western Technical College",
-    institutionCode: "WTC-PNE-031",
-    location: "Pune, Maharashtra",
-    status: "Suspended",
-    verification: "Verified",
-    studentsManaged: 1056,
-    activeDrives: 0,
-    recruitersManaged: 58,
-    studentsPlaced: 311,
-    joinedDate: "2025-11-22",
-  },
-];
+import { useAuth } from "../../context/AuthContext";
+import {
+  createPlacementOfficerRequest,
+  getPlacementOfficersRequest,
+} from "../../services/adminService";
 
-const emptyForm = {
-  name: "",
+const initialFormData = {
+  fullName: "",
   email: "",
+  password: "",
+  confirmPassword: "",
   phone: "",
   employeeId: "",
   designation: "",
@@ -127,200 +46,506 @@ const emptyForm = {
   location: "",
 };
 
-const statusStyles = {
-  Active: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  Pending: "border-amber-200 bg-amber-50 text-amber-700",
-  Suspended: "border-rose-200 bg-rose-50 text-rose-700",
-  Rejected: "border-rose-200 bg-rose-50 text-rose-700",
+const accountStatusStyles = {
+  active:
+    "border-emerald-200 bg-emerald-50 text-emerald-700",
+  pending:
+    "border-amber-200 bg-amber-50 text-amber-700",
+  suspended:
+    "border-rose-200 bg-rose-50 text-rose-700",
+  rejected:
+    "border-rose-200 bg-rose-50 text-rose-700",
 };
 
-const verificationStyles = {
-  Verified: "bg-emerald-50 text-emerald-700",
-  Pending: "bg-amber-50 text-amber-700",
-  Rejected: "bg-rose-50 text-rose-700",
-};
+function getInitials(fullName) {
+  if (!fullName) {
+    return "PO";
+  }
+
+  return fullName
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) =>
+      word.charAt(0).toUpperCase()
+    )
+    .join("");
+}
+
+function formatDate(dateValue) {
+  if (!dateValue) {
+    return "Not available";
+  }
+
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Not available";
+  }
+
+  return new Intl.DateTimeFormat(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }
+  ).format(date);
+}
+
+function formatStatus(status) {
+  if (!status) {
+    return "Unknown";
+  }
+
+  return (
+    status.charAt(0).toUpperCase() +
+    status.slice(1)
+  );
+}
 
 function PlacementOfficers() {
-  const [officers, setOfficers] = useState(
-    initialPlacementOfficers
-  );
-  const [searchTerm, setSearchTerm] = useState("");
+  const navigate = useNavigate();
+  const { token, logout } = useAuth();
+
+  const messageTimerReference =
+    useRef(null);
+
+  const [officers, setOfficers] =
+    useState([]);
+
+  const [searchTerm, setSearchTerm] =
+    useState("");
+
   const [statusFilter, setStatusFilter] =
-    useState("All Statuses");
-  const [selectedOfficer, setSelectedOfficer] =
-    useState(null);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [officerForm, setOfficerForm] = useState(emptyForm);
-  const [message, setMessage] = useState("");
+    useState("all");
 
-  const filteredOfficers = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
+  const [
+    selectedOfficer,
+    setSelectedOfficer,
+  ] = useState(null);
 
-    return officers.filter((officer) => {
-      const matchesSearch =
-        officer.name.toLowerCase().includes(query) ||
-        officer.email.toLowerCase().includes(query) ||
-        officer.employeeId.toLowerCase().includes(query) ||
-        officer.institution.toLowerCase().includes(query) ||
-        officer.location.toLowerCase().includes(query);
+  const [showAddModal, setShowAddModal] =
+    useState(false);
 
-      const matchesStatus =
-        statusFilter === "All Statuses" ||
-        officer.status === statusFilter;
+  const [formData, setFormData] =
+    useState(initialFormData);
 
-      return matchesSearch && matchesStatus;
-    });
-  }, [officers, searchTerm, statusFilter]);
+  const [showPassword, setShowPassword] =
+    useState(false);
 
-  const statistics = {
-    total: officers.length,
-    active: officers.filter(
-      (officer) => officer.status === "Active"
-    ).length,
-    pending: officers.filter(
-      (officer) => officer.verification === "Pending"
-    ).length,
-    suspended: officers.filter(
-      (officer) => officer.status === "Suspended"
-    ).length,
-  };
+  const [
+    showConfirmPassword,
+    setShowConfirmPassword,
+  ] = useState(false);
 
-  const showStatusMessage = (text) => {
-    setMessage(text);
+  const [isLoading, setIsLoading] =
+    useState(true);
 
-    window.setTimeout(() => {
-      setMessage("");
-    }, 3000);
-  };
+  const [isRefreshing, setIsRefreshing] =
+    useState(false);
 
-  const updateOfficer = (officerId, updates) => {
-    setOfficers((previousOfficers) =>
-      previousOfficers.map((officer) =>
-        officer.id === officerId
-          ? { ...officer, ...updates }
-          : officer
-      )
+  const [isCreating, setIsCreating] =
+    useState(false);
+
+  const [errorMessage, setErrorMessage] =
+    useState("");
+
+  const [
+    successMessage,
+    setSuccessMessage,
+  ] = useState("");
+
+  const handleAuthenticationError =
+    useCallback(
+      (error) => {
+        if (error.status === 401) {
+          logout();
+
+          navigate("/login", {
+            replace: true,
+          });
+
+          return true;
+        }
+
+        return false;
+      },
+      [logout, navigate]
     );
 
-    setSelectedOfficer((previousOfficer) =>
-      previousOfficer?.id === officerId
-        ? { ...previousOfficer, ...updates }
-        : previousOfficer
-    );
-  };
+  const showSuccessMessage =
+    useCallback((message) => {
+      if (
+        messageTimerReference.current
+      ) {
+        window.clearTimeout(
+          messageTimerReference.current
+        );
+      }
 
-  const verifyOfficer = (officerId) => {
-    updateOfficer(officerId, {
-      verification: "Verified",
-      status: "Active",
-    });
+      setSuccessMessage(message);
 
-    showStatusMessage(
-      "Placement officer verified successfully."
-    );
-  };
+      messageTimerReference.current =
+        window.setTimeout(() => {
+          setSuccessMessage("");
+        }, 4000);
+    }, []);
 
-  const suspendOfficer = (officerId) => {
-    updateOfficer(officerId, {
-      status: "Suspended",
-    });
+  const loadPlacementOfficers =
+    useCallback(
+      async ({
+        showMainLoader = true,
+      } = {}) => {
+        if (!token) {
+          return;
+        }
 
-    showStatusMessage("Placement officer account suspended.");
-  };
+        if (showMainLoader) {
+          setIsLoading(true);
+        } else {
+          setIsRefreshing(true);
+        }
 
-  const activateOfficer = (officerId) => {
-    updateOfficer(officerId, {
-      status: "Active",
-    });
+        setErrorMessage("");
 
-    showStatusMessage("Placement officer account activated.");
-  };
+        try {
+          const response =
+            await getPlacementOfficersRequest({
+              token,
+            });
 
-  const deleteOfficer = (officerId) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to remove this placement officer?"
-    );
+          setOfficers(
+            Array.isArray(response.officers)
+              ? response.officers
+              : []
+          );
+        } catch (error) {
+          if (
+            handleAuthenticationError(error)
+          ) {
+            return;
+          }
 
-    if (!confirmed) {
-      return;
-    }
-
-    setOfficers((previousOfficers) =>
-      previousOfficers.filter(
-        (officer) => officer.id !== officerId
-      )
-    );
-
-    setSelectedOfficer(null);
-    showStatusMessage("Placement officer removed.");
-  };
-
-  const handleFormChange = (event) => {
-    const { name, value } = event.target;
-
-    setOfficerForm((previousForm) => ({
-      ...previousForm,
-      [name]: value,
-    }));
-  };
-
-  const handleAddOfficer = (event) => {
-    event.preventDefault();
-
-    if (
-      !officerForm.name.trim() ||
-      !officerForm.email.trim() ||
-      !officerForm.employeeId.trim() ||
-      !officerForm.designation.trim() ||
-      !officerForm.institution.trim()
-    ) {
-      showStatusMessage(
-        "Complete all required placement officer fields."
-      );
-      return;
-    }
-
-    const duplicateEmail = officers.some(
-      (officer) =>
-        officer.email.toLowerCase() ===
-        officerForm.email.toLowerCase()
+          if (error.status === 403) {
+            setErrorMessage(
+              "Only administrators can manage Placement Officer accounts."
+            );
+          } else {
+            setErrorMessage(
+              error.message ||
+                "Unable to retrieve Placement Officers."
+            );
+          }
+        } finally {
+          setIsLoading(false);
+          setIsRefreshing(false);
+        }
+      },
+      [
+        token,
+        handleAuthenticationError,
+      ]
     );
 
-    if (duplicateEmail) {
-      showStatusMessage(
-        "A placement officer with this email already exists."
-      );
-      return;
-    }
+  useEffect(() => {
+    loadPlacementOfficers();
+  }, [loadPlacementOfficers]);
 
-    const newOfficer = {
-      id: Date.now(),
-      ...officerForm,
-      status: "Pending",
-      verification: "Pending",
-      studentsManaged: 0,
-      activeDrives: 0,
-      recruitersManaged: 0,
-      studentsPlaced: 0,
-      joinedDate: new Date().toISOString().slice(0, 10),
+  useEffect(() => {
+    return () => {
+      if (
+        messageTimerReference.current
+      ) {
+        window.clearTimeout(
+          messageTimerReference.current
+        );
+      }
     };
+  }, []);
 
-    setOfficers((previousOfficers) => [
-      newOfficer,
-      ...previousOfficers,
+  const filteredOfficers =
+    useMemo(() => {
+      const query = searchTerm
+        .trim()
+        .toLowerCase();
+
+      return officers.filter((officer) => {
+        const searchableValues = [
+          officer.fullName,
+          officer.email,
+          officer.employeeId,
+          officer.designation,
+          officer.department,
+          officer.institution,
+          officer.institutionCode,
+          officer.location,
+          officer.userId,
+        ];
+
+        const matchesSearch =
+          !query ||
+          searchableValues.some((value) =>
+            String(value || "")
+              .toLowerCase()
+              .includes(query)
+          );
+
+        const matchesStatus =
+          statusFilter === "all" ||
+          officer.accountStatus ===
+            statusFilter;
+
+        return (
+          matchesSearch &&
+          matchesStatus
+        );
+      });
+    }, [
+      officers,
+      searchTerm,
+      statusFilter,
     ]);
 
-    setOfficerForm(emptyForm);
-    setShowAddModal(false);
+  const statistics = useMemo(
+    () => ({
+      total: officers.length,
 
-    showStatusMessage(
-      "Placement officer added for verification."
-    );
+      active: officers.filter(
+        (officer) =>
+          officer.accountStatus ===
+          "active"
+      ).length,
+
+      suspended: officers.filter(
+        (officer) =>
+          officer.accountStatus ===
+          "suspended"
+      ).length,
+
+      profiled: officers.filter(
+        (officer) =>
+          Boolean(officer.profileId)
+      ).length,
+    }),
+    [officers]
+  );
+
+  const handleInputChange = (event) => {
+    const { name, value } =
+      event.target;
+
+    setFormData((previousData) => ({
+      ...previousData,
+      [name]: value,
+    }));
+
+    setErrorMessage("");
   };
 
-  const exportOfficers = () => {
+  const validateForm = () => {
+    const requiredFields = [
+      [
+        formData.fullName.trim(),
+        "Full name",
+      ],
+      [
+        formData.email.trim(),
+        "Official email",
+      ],
+      [formData.password, "Password"],
+      [
+        formData.confirmPassword,
+        "Confirm password",
+      ],
+      [
+        formData.phone.trim(),
+        "Phone number",
+      ],
+      [
+        formData.employeeId.trim(),
+        "Employee ID",
+      ],
+      [
+        formData.designation.trim(),
+        "Designation",
+      ],
+      [
+        formData.department.trim(),
+        "Department",
+      ],
+      [
+        formData.institution.trim(),
+        "Institution",
+      ],
+      [
+        formData.institutionCode.trim(),
+        "Institution code",
+      ],
+      [
+        formData.location.trim(),
+        "Location",
+      ],
+    ];
+
+    const missingField =
+      requiredFields.find(
+        ([value]) => !value
+      );
+
+    if (missingField) {
+      return `${missingField[1]} is required.`;
+    }
+
+    const normalizedEmail =
+      formData.email
+        .trim()
+        .toLowerCase();
+
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        normalizedEmail
+      )
+    ) {
+      return "Enter a valid official email address.";
+    }
+
+    if (formData.password.length < 8) {
+      return "Password must contain at least 8 characters.";
+    }
+
+    if (
+      new TextEncoder().encode(
+        formData.password
+      ).length > 72
+    ) {
+      return "Password cannot exceed 72 bytes.";
+    }
+
+    if (
+      formData.password !==
+      formData.confirmPassword
+    ) {
+      return "Passwords do not match.";
+    }
+
+    return "";
+  };
+
+  const handleCreateOfficer = async (
+    event
+  ) => {
+    event.preventDefault();
+
+    const validationError =
+      validateForm();
+
+    if (validationError) {
+      setErrorMessage(validationError);
+      return;
+    }
+
+    setIsCreating(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const response =
+        await createPlacementOfficerRequest({
+          token,
+          officer: {
+            fullName:
+              formData.fullName.trim(),
+
+            email: formData.email
+              .trim()
+              .toLowerCase(),
+
+            password:
+              formData.password,
+
+            phone:
+              formData.phone.trim(),
+
+            employeeId:
+              formData.employeeId
+                .trim()
+                .toUpperCase(),
+
+            designation:
+              formData.designation.trim(),
+
+            department:
+              formData.department.trim(),
+
+            institution:
+              formData.institution.trim(),
+
+            institutionCode:
+              formData.institutionCode
+                .trim()
+                .toUpperCase(),
+
+            location:
+              formData.location.trim(),
+          },
+        });
+
+      setShowAddModal(false);
+      setFormData(initialFormData);
+      setShowPassword(false);
+      setShowConfirmPassword(false);
+
+      showSuccessMessage(
+        response.message ||
+          "Placement Officer account created successfully."
+      );
+
+      await loadPlacementOfficers({
+        showMainLoader: false,
+      });
+    } catch (error) {
+      if (
+        handleAuthenticationError(error)
+      ) {
+        return;
+      }
+
+      setErrorMessage(
+        error.message ||
+          "Unable to create the Placement Officer account."
+      );
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    if (isCreating) {
+      return;
+    }
+
+    setShowAddModal(false);
+    setFormData(initialFormData);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setErrorMessage("");
+  };
+
+  const handleExport = () => {
+    if (officers.length === 0) {
+      setErrorMessage(
+        "There are no Placement Officers to export."
+      );
+
+      return;
+    }
+
     const headers = [
-      "Name",
+      "User ID",
+      "Full Name",
       "Email",
       "Phone",
       "Employee ID",
@@ -329,60 +554,73 @@ function PlacementOfficers() {
       "Institution",
       "Institution Code",
       "Location",
-      "Status",
-      "Verification",
-      "Students Managed",
-      "Active Drives",
-      "Recruiters Managed",
-      "Students Placed",
-      "Joined Date",
+      "Account Status",
+      "Email Verified",
+      "Last Login",
+      "Created At",
     ];
 
-    const rows = officers.map((officer) => [
-      officer.name,
-      officer.email,
-      officer.phone,
-      officer.employeeId,
-      officer.designation,
-      officer.department,
-      officer.institution,
-      officer.institutionCode,
-      officer.location,
-      officer.status,
-      officer.verification,
-      officer.studentsManaged,
-      officer.activeDrives,
-      officer.recruitersManaged,
-      officer.studentsPlaced,
-      officer.joinedDate,
-    ]);
+    const rows = officers.map(
+      (officer) => [
+        officer.userId,
+        officer.fullName,
+        officer.email,
+        officer.phone,
+        officer.employeeId,
+        officer.designation,
+        officer.department,
+        officer.institution,
+        officer.institutionCode,
+        officer.location,
+        officer.accountStatus,
+        officer.emailVerified
+          ? "Yes"
+          : "No",
+        officer.lastLoginAt ||
+          "Not available",
+        officer.createdAt,
+      ]
+    );
 
-    const csvContent = [headers, ...rows]
+    const csvContent = [
+      headers,
+      ...rows,
+    ]
       .map((row) =>
         row
           .map(
             (value) =>
-              `"${String(value).replaceAll('"', '""')}"`
+              `"${String(
+                value ?? ""
+              ).replaceAll('"', '""')}"`
           )
           .join(",")
       )
       .join("\n");
 
-    const file = new Blob([csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
+    const file = new Blob(
+      [csvContent],
+      {
+        type: "text/csv;charset=utf-8;",
+      }
+    );
 
-    const downloadUrl = URL.createObjectURL(file);
-    const anchor = document.createElement("a");
+    const downloadUrl =
+      URL.createObjectURL(file);
+
+    const anchor =
+      document.createElement("a");
 
     anchor.href = downloadUrl;
-    anchor.download = "campuste-placement-officers.csv";
+    anchor.download =
+      "campuste-placement-officers.csv";
+
     anchor.click();
 
     URL.revokeObjectURL(downloadUrl);
 
-    showStatusMessage(
-      "Placement officer data exported successfully."
+    showSuccessMessage(
+      "Placement Officer data exported successfully."
     );
   };
 
@@ -407,16 +645,18 @@ function PlacementOfficers() {
               </h1>
 
               <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
-                Verify placement officer accounts, manage access and
-                monitor placement activity.
+                Create Placement Officer
+                accounts and manage
+                institutional access using
+                real data from MySQL.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={exportOfficers}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 py-3 font-semibold text-white hover:bg-white/20"
+                onClick={handleExport}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 py-3 font-semibold text-white transition hover:bg-white/20"
               >
                 <Download size={18} />
                 Export
@@ -424,32 +664,91 @@ function PlacementOfficers() {
 
               <button
                 type="button"
-                onClick={() => setShowAddModal(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-blue-700 hover:bg-blue-50"
+                onClick={() => {
+                  setErrorMessage("");
+                  setShowAddModal(true);
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-blue-700 transition hover:bg-blue-50"
               >
                 <Plus size={18} />
                 Add Officer
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  loadPlacementOfficers({
+                    showMainLoader: false,
+                  })
+                }
+                disabled={
+                  isLoading ||
+                  isRefreshing
+                }
+                className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 py-3 font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <RefreshCw
+                  size={18}
+                  className={
+                    isRefreshing
+                      ? "animate-spin"
+                      : ""
+                  }
+                />
+
+                {isRefreshing
+                  ? "Refreshing..."
+                  : "Refresh"}
               </button>
             </div>
           </div>
         </div>
 
-        {message && (
-          <div className="flex items-center gap-3 bg-emerald-50 px-6 py-4 text-sm font-semibold text-emerald-800 sm:px-8">
+        {successMessage && (
+          <div
+            role="status"
+            className="flex items-center gap-3 border-t border-emerald-200 bg-emerald-50 px-6 py-4 text-sm font-semibold text-emerald-800 sm:px-8"
+          >
             <CheckCircle2 size={19} />
-            {message}
+            {successMessage}
           </div>
         )}
+
+        {errorMessage &&
+          !showAddModal && (
+            <div
+              role="alert"
+              className="flex items-start gap-3 border-t border-rose-200 bg-rose-50 px-6 py-4 text-sm font-semibold text-rose-700 sm:px-8"
+            >
+              <AlertCircle
+                size={19}
+                className="mt-0.5 shrink-0"
+              />
+
+              <div className="flex-1">
+                <p>{errorMessage}</p>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    loadPlacementOfficers()
+                  }
+                  className="mt-2 underline"
+                >
+                  Try again
+                </button>
+              </div>
+            </div>
+          )}
       </section>
 
       <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-          <UserCog
-            size={23}
-            className="text-blue-700"
-          />
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+            <Users size={22} />
+          </div>
 
-          <p className="mt-5 text-3xl font-bold text-neutral-900">
+          <p className="mt-6 text-3xl font-bold text-neutral-900">
             {statistics.total}
           </p>
 
@@ -459,12 +758,11 @@ function PlacementOfficers() {
         </article>
 
         <article className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-          <UserCheck
-            size={23}
-            className="text-emerald-700"
-          />
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+            <UserCheck size={22} />
+          </div>
 
-          <p className="mt-5 text-3xl font-bold text-neutral-900">
+          <p className="mt-6 text-3xl font-bold text-neutral-900">
             {statistics.active}
           </p>
 
@@ -474,27 +772,25 @@ function PlacementOfficers() {
         </article>
 
         <article className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-          <ShieldCheck
-            size={23}
-            className="text-amber-700"
-          />
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
+            <ShieldCheck size={22} />
+          </div>
 
-          <p className="mt-5 text-3xl font-bold text-neutral-900">
-            {statistics.pending}
+          <p className="mt-6 text-3xl font-bold text-neutral-900">
+            {statistics.profiled}
           </p>
 
           <p className="mt-1 text-sm text-neutral-600">
-            Pending Verification
+            Complete Profiles
           </p>
         </article>
 
         <article className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-          <Ban
-            size={23}
-            className="text-rose-700"
-          />
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-100 text-rose-700">
+            <UserCog size={22} />
+          </div>
 
-          <p className="mt-5 text-3xl font-bold text-neutral-900">
+          <p className="mt-6 text-3xl font-bold text-neutral-900">
             {statistics.suspended}
           </p>
 
@@ -504,7 +800,7 @@ function PlacementOfficers() {
         </article>
       </section>
 
-      <section className="rounded-3xl border border-neutral-200 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-sm">
         <div className="border-b border-neutral-200 p-6 sm:p-8">
           <div className="flex flex-col gap-4 lg:flex-row">
             <div className="relative flex-1">
@@ -517,366 +813,641 @@ function PlacementOfficers() {
                 type="text"
                 value={searchTerm}
                 onChange={(event) =>
-                  setSearchTerm(event.target.value)
+                  setSearchTerm(
+                    event.target.value
+                  )
                 }
-                placeholder="Search officer, institution, email or ID..."
-                className="w-full rounded-xl border border-neutral-300 py-3 pl-12 pr-4 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                placeholder="Search officer, institution, email or employee ID..."
+                className="w-full rounded-xl border border-neutral-300 py-3 pl-12 pr-4 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(event) =>
-                setStatusFilter(event.target.value)
+                setStatusFilter(
+                  event.target.value
+                )
               }
               className="rounded-xl border border-neutral-300 bg-white px-4 py-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
             >
-              <option>All Statuses</option>
-              <option>Active</option>
-              <option>Pending</option>
-              <option>Suspended</option>
-              <option>Rejected</option>
+              <option value="all">
+                All Statuses
+              </option>
+
+              <option value="active">
+                Active
+              </option>
+
+              <option value="pending">
+                Pending
+              </option>
+
+              <option value="suspended">
+                Suspended
+              </option>
+
+              <option value="rejected">
+                Rejected
+              </option>
             </select>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1150px]">
-            <thead>
-              <tr className="border-b border-neutral-200 bg-neutral-50 text-left">
-                <th className="px-6 py-4 text-xs font-bold uppercase text-neutral-500">
-                  Officer
-                </th>
+        {isLoading ? (
+          <div className="flex min-h-72 flex-col items-center justify-center px-6 py-16 text-center">
+            <RefreshCw
+              size={34}
+              className="animate-spin text-blue-700"
+            />
 
-                <th className="px-6 py-4 text-xs font-bold uppercase text-neutral-500">
-                  Institution
-                </th>
+            <h3 className="mt-5 text-xl font-bold text-neutral-900">
+              Loading Placement Officers
+            </h3>
 
-                <th className="px-6 py-4 text-xs font-bold uppercase text-neutral-500">
-                  Activity
-                </th>
+            <p className="mt-2 text-sm text-neutral-600">
+              Retrieving account and
+              institution details from
+              MySQL.
+            </p>
+          </div>
+        ) : filteredOfficers.length ===
+          0 ? (
+          <div className="flex min-h-72 flex-col items-center justify-center px-6 py-16 text-center">
+            <UserCog
+              size={36}
+              className="text-neutral-400"
+            />
 
-                <th className="px-6 py-4 text-xs font-bold uppercase text-neutral-500">
-                  Verification
-                </th>
+            <h3 className="mt-5 text-xl font-bold text-neutral-900">
+              No Placement Officers found
+            </h3>
 
-                <th className="px-6 py-4 text-xs font-bold uppercase text-neutral-500">
-                  Status
-                </th>
+            <p className="mt-2 text-sm text-neutral-600">
+              Add a Placement Officer or
+              change the selected filters.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="hidden overflow-x-auto lg:block">
+              <table className="w-full min-w-[1150px]">
+                <thead>
+                  <tr className="border-b border-neutral-200 bg-neutral-50 text-left">
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-neutral-500">
+                      Officer
+                    </th>
 
-                <th className="px-6 py-4 text-right text-xs font-bold uppercase text-neutral-500">
-                  Actions
-                </th>
-              </tr>
-            </thead>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-neutral-500">
+                      Institution
+                    </th>
 
-            <tbody>
-              {filteredOfficers.map((officer) => (
-                <tr
-                  key={officer.id}
-                  className="border-b border-neutral-100 hover:bg-neutral-50"
-                >
-                  <td className="px-6 py-5">
-                    <p className="font-bold text-neutral-900">
-                      {officer.name}
-                    </p>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-neutral-500">
+                      Account
+                    </th>
 
-                    <p className="mt-1 text-sm text-neutral-500">
-                      {officer.designation}
-                    </p>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-neutral-500">
+                      Last Login
+                    </th>
 
-                    <p className="mt-2 flex items-center gap-2 text-xs text-neutral-500">
-                      <Mail size={13} />
-                      {officer.email}
-                    </p>
+                    <th className="px-6 py-4 text-right text-xs font-bold uppercase text-neutral-500">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
 
-                    <p className="mt-1 text-xs text-neutral-400">
-                      {officer.employeeId}
-                    </p>
-                  </td>
-
-                  <td className="px-6 py-5">
-                    <p className="font-bold text-neutral-900">
-                      {officer.institution}
-                    </p>
-
-                    <p className="mt-1 text-sm text-neutral-500">
-                      {officer.department}
-                    </p>
-
-                    <p className="mt-2 flex items-center gap-2 text-xs text-neutral-500">
-                      <MapPin size={13} />
-                      {officer.location}
-                    </p>
-                  </td>
-
-                  <td className="px-6 py-5">
-                    <div className="grid grid-cols-2 gap-2 text-center">
-                      <div className="rounded-xl bg-blue-50 p-2">
-                        <p className="font-bold text-blue-700">
-                          {officer.studentsManaged}
-                        </p>
-                        <p className="text-xs text-blue-600">
-                          Students
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl bg-purple-50 p-2">
-                        <p className="font-bold text-purple-700">
-                          {officer.activeDrives}
-                        </p>
-                        <p className="text-xs text-purple-600">
-                          Drives
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl bg-amber-50 p-2">
-                        <p className="font-bold text-amber-700">
-                          {officer.recruitersManaged}
-                        </p>
-                        <p className="text-xs text-amber-600">
-                          Recruiters
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl bg-emerald-50 p-2">
-                        <p className="font-bold text-emerald-700">
-                          {officer.studentsPlaced}
-                        </p>
-                        <p className="text-xs text-emerald-600">
-                          Placed
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="px-6 py-5">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-bold ${
-                        verificationStyles[
-                          officer.verification
-                        ]
-                      }`}
-                    >
-                      {officer.verification}
-                    </span>
-                  </td>
-
-                  <td className="px-6 py-5">
-                    <span
-                      className={`rounded-full border px-3 py-1 text-xs font-bold ${
-                        statusStyles[officer.status]
-                      }`}
-                    >
-                      {officer.status}
-                    </span>
-                  </td>
-
-                  <td className="px-6 py-5">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedOfficer(officer)
+                <tbody>
+                  {filteredOfficers.map(
+                    (officer) => (
+                      <tr
+                        key={
+                          officer.userId
                         }
-                        className="flex h-10 w-10 items-center justify-center rounded-xl text-blue-700 hover:bg-blue-50"
-                        aria-label="View officer"
+                        className="border-b border-neutral-100 transition hover:bg-neutral-50"
                       >
-                        <Eye size={18} />
-                      </button>
+                        <td className="px-6 py-5">
+                          <div className="flex items-start gap-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-700 to-purple-700 font-bold text-white">
+                              {getInitials(
+                                officer.fullName
+                              )}
+                            </div>
 
-                      {officer.verification !== "Verified" && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            verifyOfficer(officer.id)
-                          }
-                          className="flex h-10 w-10 items-center justify-center rounded-xl text-emerald-700 hover:bg-emerald-50"
-                          aria-label="Verify officer"
-                        >
-                          <UserCheck size={18} />
-                        </button>
-                      )}
+                            <div>
+                              <p className="font-bold text-neutral-900">
+                                {
+                                  officer.fullName
+                                }
+                              </p>
 
-                      {officer.status === "Active" ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            suspendOfficer(officer.id)
-                          }
-                          className="flex h-10 w-10 items-center justify-center rounded-xl text-amber-700 hover:bg-amber-50"
-                          aria-label="Suspend officer"
-                        >
-                          <Ban size={18} />
-                        </button>
-                      ) : (
-                        officer.verification === "Verified" && (
+                              <p className="mt-1 text-sm text-neutral-500">
+                                {officer.designation ||
+                                  "Placement Officer"}
+                              </p>
+
+                              <p className="mt-2 flex items-center gap-2 text-xs text-neutral-500">
+                                <Mail
+                                  size={
+                                    13
+                                  }
+                                />
+
+                                {
+                                  officer.email
+                                }
+                              </p>
+
+                              <p className="mt-1 text-xs text-neutral-400">
+                                {officer.employeeId ||
+                                  `User #${officer.userId}`}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-6 py-5">
+                          <p className="font-bold text-neutral-900">
+                            {officer.institution ||
+                              "Profile not completed"}
+                          </p>
+
+                          <p className="mt-1 text-sm text-neutral-500">
+                            {officer.department ||
+                              "Department not available"}
+                          </p>
+
+                          <p className="mt-2 flex items-center gap-2 text-xs text-neutral-500">
+                            <MapPin
+                              size={13}
+                            />
+
+                            {officer.location ||
+                              "Location not available"}
+                          </p>
+                        </td>
+
+                        <td className="px-6 py-5">
+                          <span
+                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${
+                              accountStatusStyles[
+                                officer
+                                  .accountStatus
+                              ] ||
+                              "border-neutral-200 bg-neutral-100 text-neutral-600"
+                            }`}
+                          >
+                            {formatStatus(
+                              officer.accountStatus
+                            )}
+                          </span>
+
+                          <p className="mt-2 text-xs text-neutral-500">
+                            {officer.emailVerified
+                              ? "Email verified"
+                              : "Email not verified"}
+                          </p>
+                        </td>
+
+                        <td className="px-6 py-5 text-sm font-medium text-neutral-700">
+                          {formatDate(
+                            officer.lastLoginAt
+                          )}
+                        </td>
+
+                        <td className="px-6 py-5 text-right">
                           <button
                             type="button"
                             onClick={() =>
-                              activateOfficer(officer.id)
+                              setSelectedOfficer(
+                                officer
+                              )
                             }
-                            className="flex h-10 w-10 items-center justify-center rounded-xl text-emerald-700 hover:bg-emerald-50"
-                            aria-label="Activate officer"
+                            className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
                           >
-                            <CheckCircle2 size={18} />
+                            <Eye
+                              size={16}
+                            />
+                            View
                           </button>
-                        )
-                      )}
+                        </td>
+                      </tr>
+                    )
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          deleteOfficer(officer.id)
-                        }
-                        className="flex h-10 w-10 items-center justify-center rounded-xl text-rose-700 hover:bg-rose-50"
-                        aria-label="Delete officer"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+            <div className="space-y-4 p-5 lg:hidden">
+              {filteredOfficers.map(
+                (officer) => (
+                  <article
+                    key={officer.userId}
+                    className="rounded-2xl border border-neutral-200 p-5"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-700 to-purple-700 font-bold text-white">
+                        {getInitials(
+                          officer.fullName
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <h3 className="truncate font-bold text-neutral-900">
+                          {
+                            officer.fullName
+                          }
+                        </h3>
+
+                        <p className="mt-1 break-all text-sm text-neutral-500">
+                          {officer.email}
+                        </p>
+                      </div>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
 
-        {filteredOfficers.length === 0 && (
-          <div className="py-16 text-center">
-            <UserCog
-              size={34}
-              className="mx-auto text-neutral-400"
-            />
+                    <div className="mt-5 space-y-3 rounded-2xl bg-neutral-50 p-4 text-sm text-neutral-600">
+                      <p className="flex items-center gap-2">
+                        <Building2
+                          size={16}
+                        />
 
-            <h3 className="mt-4 text-lg font-bold text-neutral-900">
-              No placement officers found
-            </h3>
-          </div>
+                        {officer.institution ||
+                          "Profile not completed"}
+                      </p>
+
+                      <p className="flex items-center gap-2">
+                        <MapPin
+                          size={16}
+                        />
+
+                        {officer.location ||
+                          "Location not available"}
+                      </p>
+
+                      <p>
+                        <span className="font-semibold text-neutral-900">
+                          Employee ID:
+                        </span>{" "}
+                        {officer.employeeId ||
+                          "Not available"}
+                      </p>
+
+                      <p>
+                        <span className="font-semibold text-neutral-900">
+                          Status:
+                        </span>{" "}
+                        {formatStatus(
+                          officer.accountStatus
+                        )}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedOfficer(
+                          officer
+                        )
+                      }
+                      className="mt-4 inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700"
+                    >
+                      <Eye size={16} />
+                      View Details
+                    </button>
+                  </article>
+                )
+              )}
+            </div>
+          </>
         )}
       </section>
 
       {selectedOfficer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/60 p-4">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
-            <div className="flex items-start justify-between border-b border-neutral-200 p-6">
-              <div>
-                <h2 className="text-2xl font-bold text-neutral-900">
-                  {selectedOfficer.name}
-                </h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/60 p-4 backdrop-blur-sm">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-neutral-200 p-6 sm:p-8">
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-700 to-purple-700 text-lg font-bold text-white">
+                  {getInitials(
+                    selectedOfficer.fullName
+                  )}
+                </div>
 
-                <p className="mt-1 text-neutral-600">
-                  {selectedOfficer.designation}
-                </p>
+                <div>
+                  <h2 className="text-2xl font-bold text-neutral-900">
+                    {
+                      selectedOfficer.fullName
+                    }
+                  </h2>
+
+                  <p className="mt-1 text-neutral-600">
+                    {selectedOfficer.designation ||
+                      "Placement Officer"}
+                  </p>
+                </div>
               </div>
 
               <button
                 type="button"
-                onClick={() => setSelectedOfficer(null)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl hover:bg-neutral-100"
+                onClick={() =>
+                  setSelectedOfficer(null)
+                }
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-neutral-500 hover:bg-neutral-100"
+                aria-label="Close officer details"
               >
-                <X size={20} />
+                <X size={21} />
               </button>
             </div>
 
-            <div className="grid gap-4 p-6 sm:grid-cols-2">
-              <div className="rounded-2xl bg-neutral-50 p-5">
-                <p className="text-sm text-neutral-500">
-                  Institution
-                </p>
-                <p className="mt-1 font-bold text-neutral-900">
-                  {selectedOfficer.institution}
-                </p>
-              </div>
+            <div className="grid gap-4 p-6 sm:grid-cols-2 sm:p-8">
+              {[
+                [
+                  "Official Email",
+                  selectedOfficer.email,
+                ],
+                [
+                  "Phone Number",
+                  selectedOfficer.phone ||
+                    "Not available",
+                ],
+                [
+                  "Employee ID",
+                  selectedOfficer.employeeId ||
+                    "Not available",
+                ],
+                [
+                  "Designation",
+                  selectedOfficer.designation ||
+                    "Not available",
+                ],
+                [
+                  "Department",
+                  selectedOfficer.department ||
+                    "Not available",
+                ],
+                [
+                  "Institution",
+                  selectedOfficer.institution ||
+                    "Not available",
+                ],
+                [
+                  "Institution Code",
+                  selectedOfficer.institutionCode ||
+                    "Not available",
+                ],
+                [
+                  "Location",
+                  selectedOfficer.location ||
+                    "Not available",
+                ],
+                [
+                  "Account Status",
+                  formatStatus(
+                    selectedOfficer.accountStatus
+                  ),
+                ],
+                [
+                  "Created On",
+                  formatDate(
+                    selectedOfficer.createdAt
+                  ),
+                ],
+                [
+                  "Last Login",
+                  formatDate(
+                    selectedOfficer.lastLoginAt
+                  ),
+                ],
+                [
+                  "Email Verification",
+                  selectedOfficer.emailVerified
+                    ? "Verified"
+                    : "Not verified",
+                ],
+              ].map(
+                ([label, value]) => (
+                  <div
+                    key={label}
+                    className="rounded-2xl bg-neutral-50 p-5"
+                  >
+                    <p className="text-sm font-semibold text-neutral-500">
+                      {label}
+                    </p>
 
-              <div className="rounded-2xl bg-neutral-50 p-5">
-                <p className="text-sm text-neutral-500">
-                  Employee ID
-                </p>
-                <p className="mt-1 font-bold text-neutral-900">
-                  {selectedOfficer.employeeId}
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-neutral-50 p-5">
-                <p className="text-sm text-neutral-500">
-                  Email
-                </p>
-                <p className="mt-1 break-all font-bold text-neutral-900">
-                  {selectedOfficer.email}
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-neutral-50 p-5">
-                <p className="text-sm text-neutral-500">
-                  Phone
-                </p>
-                <p className="mt-1 font-bold text-neutral-900">
-                  {selectedOfficer.phone}
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-neutral-50 p-5">
-                <p className="text-sm text-neutral-500">
-                  Location
-                </p>
-                <p className="mt-1 font-bold text-neutral-900">
-                  {selectedOfficer.location}
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-neutral-50 p-5">
-                <p className="text-sm text-neutral-500">
-                  Joined Date
-                </p>
-                <p className="mt-1 font-bold text-neutral-900">
-                  {selectedOfficer.joinedDate}
-                </p>
-              </div>
+                    <p className="mt-2 break-words font-bold text-neutral-900">
+                      {value}
+                    </p>
+                  </div>
+                )
+              )}
             </div>
           </div>
         </div>
       )}
 
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/60 p-4 backdrop-blur-sm">
           <form
-            onSubmit={handleAddOfficer}
-            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white shadow-2xl"
+            onSubmit={handleCreateOfficer}
+            className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white shadow-2xl"
           >
-            <div className="flex items-center justify-between border-b border-neutral-200 p-6">
+            <div className="flex items-start justify-between border-b border-neutral-200 p-6 sm:p-8">
               <div>
                 <h2 className="text-2xl font-bold text-neutral-900">
                   Add Placement Officer
                 </h2>
 
-                <p className="mt-1 text-sm text-neutral-600">
-                  Register a new placement officer account.
+                <p className="mt-2 text-sm text-neutral-600">
+                  Create an active account
+                  with a temporary login
+                  password.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={() => {
-                  setShowAddModal(false);
-                  setOfficerForm(emptyForm);
-                }}
-                className="flex h-10 w-10 items-center justify-center rounded-xl hover:bg-neutral-100"
+                onClick={handleCloseModal}
+                disabled={isCreating}
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-neutral-500 hover:bg-neutral-100 disabled:opacity-50"
+                aria-label="Close officer form"
               >
-                <X size={20} />
+                <X size={21} />
               </button>
             </div>
 
-            <div className="grid gap-5 p-6 sm:grid-cols-2">
+            {errorMessage && (
+              <div
+                role="alert"
+                className="mx-6 mt-6 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 sm:mx-8"
+              >
+                <AlertCircle
+                  size={19}
+                  className="mt-0.5 shrink-0"
+                />
+
+                {errorMessage}
+              </div>
+            )}
+
+            <div className="grid gap-5 p-6 sm:grid-cols-2 sm:p-8">
+              <div>
+                <label
+                  htmlFor="fullName"
+                  className="mb-2 block text-sm font-semibold text-neutral-700"
+                >
+                  Full Name
+                </label>
+
+                <input
+                  id="fullName"
+                  name="fullName"
+                  type="text"
+                  value={
+                    formData.fullName
+                  }
+                  onChange={
+                    handleInputChange
+                  }
+                  disabled={isCreating}
+                  placeholder="Dr. Ramesh Kumar"
+                  className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 disabled:bg-neutral-100"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="email"
+                  className="mb-2 block text-sm font-semibold text-neutral-700"
+                >
+                  Official Email
+                </label>
+
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={
+                    handleInputChange
+                  }
+                  disabled={isCreating}
+                  placeholder="officer@institution.edu"
+                  className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 disabled:bg-neutral-100"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="password"
+                  className="mb-2 block text-sm font-semibold text-neutral-700"
+                >
+                  Temporary Password
+                </label>
+
+                <div className="relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type={
+                      showPassword
+                        ? "text"
+                        : "password"
+                    }
+                    value={
+                      formData.password
+                    }
+                    onChange={
+                      handleInputChange
+                    }
+                    disabled={isCreating}
+                    placeholder="Minimum 8 characters"
+                    className="w-full rounded-xl border border-neutral-300 px-4 py-3 pr-14 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 disabled:bg-neutral-100"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowPassword(
+                        (value) =>
+                          !value
+                      )
+                    }
+                    disabled={isCreating}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-700"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPassword ? (
+                      <EyeOff
+                        size={19}
+                      />
+                    ) : (
+                      <Eye size={19} />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="confirmPassword"
+                  className="mb-2 block text-sm font-semibold text-neutral-700"
+                >
+                  Confirm Password
+                </label>
+
+                <div className="relative">
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={
+                      showConfirmPassword
+                        ? "text"
+                        : "password"
+                    }
+                    value={
+                      formData.confirmPassword
+                    }
+                    onChange={
+                      handleInputChange
+                    }
+                    disabled={isCreating}
+                    placeholder="Re-enter password"
+                    className="w-full rounded-xl border border-neutral-300 px-4 py-3 pr-14 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 disabled:bg-neutral-100"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowConfirmPassword(
+                        (value) =>
+                          !value
+                      )
+                    }
+                    disabled={isCreating}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-700"
+                    aria-label="Toggle confirmed password visibility"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff
+                        size={19}
+                      />
+                    ) : (
+                      <Eye size={19} />
+                    )}
+                  </button>
+                </div>
+              </div>
+
               {[
-                ["name", "Full Name", "Dr. Ramesh Kumar"],
                 [
-                  "email",
-                  "Official Email",
-                  "officer@institution.edu",
+                  "phone",
+                  "Phone Number",
+                  "+91 98765 43210",
                 ],
-                ["phone", "Phone Number", "+91 98765 43210"],
-                ["employeeId", "Employee ID", "PO-2026-041"],
+                [
+                  "employeeId",
+                  "Employee ID",
+                  "PO-2026-003",
+                ],
                 [
                   "designation",
                   "Designation",
@@ -885,55 +1456,111 @@ function PlacementOfficers() {
                 [
                   "department",
                   "Department",
-                  "Training and Placement",
+                  "Training and Placement Cell",
                 ],
                 [
                   "institution",
                   "Institution",
-                  "Institution name",
+                  "CampusTE Institute of Technology",
                 ],
                 [
                   "institutionCode",
                   "Institution Code",
                   "CTE-CBE-001",
                 ],
-                ["location", "Location", "City, State"],
-              ].map(([name, label, placeholder]) => (
-                <div key={name}>
-                  <label className="mb-2 block text-sm font-semibold text-neutral-700">
-                    {label}
-                  </label>
+                [
+                  "location",
+                  "Location",
+                  "Coimbatore, Tamil Nadu",
+                ],
+              ].map(
+                ([
+                  name,
+                  label,
+                  placeholder,
+                ]) => (
+                  <div key={name}>
+                    <label
+                      htmlFor={name}
+                      className="mb-2 block text-sm font-semibold text-neutral-700"
+                    >
+                      {label}
+                    </label>
 
-                  <input
-                    type={name === "email" ? "email" : "text"}
-                    name={name}
-                    value={officerForm[name]}
-                    onChange={handleFormChange}
-                    placeholder={placeholder}
-                    className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                    <input
+                      id={name}
+                      name={name}
+                      type="text"
+                      value={
+                        formData[name]
+                      }
+                      onChange={
+                        handleInputChange
+                      }
+                      disabled={
+                        isCreating
+                      }
+                      placeholder={
+                        placeholder
+                      }
+                      className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 disabled:bg-neutral-100"
+                    />
+                  </div>
+                )
+              )}
+
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5 sm:col-span-2">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck
+                    size={21}
+                    className="mt-0.5 shrink-0 text-blue-700"
                   />
+
+                  <div>
+                    <p className="font-bold text-blue-900">
+                      Active account
+                    </p>
+
+                    <p className="mt-1 text-sm leading-6 text-blue-700">
+                      This account will be
+                      created with the
+                      Placement Officer role
+                      and active status.
+                      Share the temporary
+                      password securely.
+                    </p>
+                  </div>
                 </div>
-              ))}
+              </div>
             </div>
 
-            <div className="flex justify-end gap-3 border-t border-neutral-200 p-6">
+            <div className="flex justify-end gap-3 border-t border-neutral-200 p-6 sm:px-8">
               <button
                 type="button"
-                onClick={() => {
-                  setShowAddModal(false);
-                  setOfficerForm(emptyForm);
-                }}
-                className="rounded-xl border border-neutral-300 px-5 py-3 font-semibold text-neutral-700 hover:bg-neutral-100"
+                onClick={handleCloseModal}
+                disabled={isCreating}
+                className="rounded-xl border border-neutral-300 px-5 py-3 font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
               >
                 Cancel
               </button>
 
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
+                disabled={isCreating}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-700 to-purple-700 px-5 py-3 font-semibold text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <Plus size={18} />
-                Add Officer
+                {isCreating ? (
+                  <LoaderCircle
+                    size={18}
+                    className="animate-spin"
+                  />
+                ) : (
+                  <Plus size={18} />
+                )}
+
+                {isCreating
+                  ? "Creating Account..."
+                  : "Create Officer"}
               </button>
             </div>
           </form>

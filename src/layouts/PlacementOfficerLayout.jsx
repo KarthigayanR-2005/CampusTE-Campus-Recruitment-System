@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import {
+  NavLink,
+  Outlet,
+  useNavigate,
+} from "react-router-dom";
 import {
   BarChart3,
   Bell,
@@ -15,6 +19,8 @@ import {
   Users,
   X,
 } from "lucide-react";
+
+import { useAuth } from "../context/AuthContext";
 
 const navigationItems = [
   {
@@ -64,12 +70,57 @@ const navigationItems = [
   },
 ];
 
+function getInitials(fullName) {
+  if (!fullName) {
+    return "PO";
+  }
+
+  return fullName
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) =>
+      word.charAt(0).toUpperCase()
+    )
+    .join("");
+}
+
 function PlacementOfficerLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const [sidebarOpen, setSidebarOpen] =
+    useState(false);
 
   const closeSidebar = () => {
     setSidebarOpen(false);
   };
+
+  const handleLogout = () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to log out?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    logout();
+    closeSidebar();
+
+    navigate("/login", {
+      replace: true,
+    });
+  };
+
+  const officerName =
+    user?.fullName || "Placement Officer";
+
+  const officerEmail =
+    user?.email || "Placement Officer Account";
+
+  const officerInitials =
+    getInitials(officerName);
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -84,7 +135,9 @@ function PlacementOfficerLayout() {
 
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-neutral-200 bg-white transition-transform duration-300 lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          sidebarOpen
+            ? "translate-x-0"
+            : "-translate-x-full"
         }`}
       >
         <div className="flex h-20 items-center justify-between border-b border-neutral-200 px-6">
@@ -121,17 +174,17 @@ function PlacementOfficerLayout() {
         <div className="border-b border-neutral-200 px-5 py-5">
           <div className="rounded-2xl bg-gradient-to-r from-blue-50 to-purple-50 p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-purple-600 font-bold text-white">
-                PO
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-purple-600 font-bold text-white">
+                {officerInitials}
               </div>
 
               <div className="min-w-0">
                 <p className="truncate font-bold text-neutral-900">
-                  Placement Officer
+                  {officerName}
                 </p>
 
                 <p className="truncate text-xs text-neutral-500">
-                  placement@campuste.edu
+                  {officerEmail}
                 </p>
               </div>
             </div>
@@ -163,13 +216,14 @@ function PlacementOfficerLayout() {
         </nav>
 
         <div className="border-t border-neutral-200 p-4">
-          <NavLink
-            to="/login"
+          <button
+            type="button"
+            onClick={handleLogout}
             className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
           >
             <LogOut size={19} />
             Logout
-          </NavLink>
+          </button>
         </div>
       </aside>
 
@@ -178,7 +232,9 @@ function PlacementOfficerLayout() {
           <div className="flex items-center gap-4">
             <button
               type="button"
-              onClick={() => setSidebarOpen(true)}
+              onClick={() =>
+                setSidebarOpen(true)
+              }
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-200 text-neutral-600 transition hover:bg-neutral-100 lg:hidden"
               aria-label="Open sidebar"
             >
@@ -191,7 +247,8 @@ function PlacementOfficerLayout() {
               </h1>
 
               <p className="hidden text-sm text-neutral-500 sm:block">
-                Manage students, recruiters and campus placement
+                Manage students, recruiters
+                and campus placement
                 activities
               </p>
             </div>
@@ -210,16 +267,16 @@ function PlacementOfficerLayout() {
 
             <div className="hidden items-center gap-3 rounded-xl border border-neutral-200 px-3 py-2 sm:flex">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-purple-600 text-sm font-bold text-white">
-                PO
+                {officerInitials}
               </div>
 
-              <div>
-                <p className="text-sm font-bold text-neutral-900">
-                  Placement Officer
+              <div className="min-w-0">
+                <p className="max-w-40 truncate text-sm font-bold text-neutral-900">
+                  {officerName}
                 </p>
 
                 <p className="text-xs text-neutral-500">
-                  Administrator
+                  Placement Officer
                 </p>
               </div>
             </div>
