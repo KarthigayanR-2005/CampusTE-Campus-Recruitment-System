@@ -6,6 +6,13 @@ import {
 } from "../controllers/studentController.js";
 
 import {
+  addStudentSkill,
+  editStudentSkill,
+  getStudentSkills,
+  removeStudentSkill,
+} from "../controllers/studentSkillController.js";
+
+import {
   authenticate,
 } from "../middleware/authenticate.js";
 
@@ -20,6 +27,7 @@ studentRouter.use(
   authorizeRoles("student")
 );
 
+// Student profile
 studentRouter.get(
   "/profile",
   getStudentProfile
@@ -28,6 +36,27 @@ studentRouter.get(
 studentRouter.put(
   "/profile",
   updateStudentProfile
+);
+
+// Student skills
+studentRouter.get(
+  "/skills",
+  getStudentSkills
+);
+
+studentRouter.post(
+  "/skills",
+  addStudentSkill
+);
+
+studentRouter.put(
+  "/skills/:skillId",
+  editStudentSkill
+);
+
+studentRouter.delete(
+  "/skills/:skillId",
+  removeStudentSkill
 );
 
 export default studentRouter;
