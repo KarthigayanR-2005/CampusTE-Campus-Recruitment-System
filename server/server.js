@@ -8,10 +8,12 @@ const [
   { testDatabaseConnection },
   { default: authRoutes },
   { default: adminRoutes },
+  { default: studentRoutes },
 ] = await Promise.all([
   import("./src/config/database.js"),
   import("./src/routes/authRoutes.js"),
   import("./src/routes/adminRoutes.js"),
+  import("./src/routes/studentRoutes.js"),
 ]);
 
 const app = express();
@@ -81,15 +83,9 @@ app.get(
   }
 );
 
-app.use(
-  "/api/auth",
-  authRoutes
-);
-
-app.use(
-  "/api/admin",
-  adminRoutes
-);
+app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/student", studentRoutes);
 
 app.use((request, response) => {
   response.status(404).json({
