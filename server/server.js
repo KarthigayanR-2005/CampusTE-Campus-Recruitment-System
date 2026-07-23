@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
+
 import {
   fileURLToPath,
 } from "url";
@@ -29,9 +30,6 @@ if (environmentResult.error) {
   process.exit(1);
 }
 
-// Import database-dependent modules only
-// after loading the environment variables.
-
 const [
   { testDatabaseConnection },
   { default: authRoutes },
@@ -41,6 +39,10 @@ const [
     default:
       recruiterCompanyProfileRoutes,
   },
+  {
+    default:
+      recruiterJobRoutes,
+  },
 ] = await Promise.all([
   import("./src/config/database.js"),
   import("./src/routes/authRoutes.js"),
@@ -48,6 +50,9 @@ const [
   import("./src/routes/studentRoutes.js"),
   import(
     "./src/routes/recruiterCompanyProfileRoutes.js"
+  ),
+  import(
+    "./src/routes/recruiterJobRoutes.js"
   ),
 ]);
 
@@ -84,7 +89,7 @@ app.get(
       const databaseStatus =
         await testDatabaseConnection();
 
-      response.status(200).json({
+      return response.status(200).json({
         success: true,
         status: "healthy",
 
@@ -110,7 +115,7 @@ app.get(
         error.message
       );
 
-      response.status(503).json({
+      return response.status(503).json({
         success: false,
         status: "unhealthy",
 
@@ -125,38 +130,33 @@ app.get(
   }
 );
 
-// Authentication routes
-
 app.use(
   "/api/auth",
   authRoutes
 );
-
-// Admin routes
 
 app.use(
   "/api/admin",
   adminRoutes
 );
 
-// Student routes
-
 app.use(
   "/api/student",
   studentRoutes
 );
-
-// Recruiter routes
 
 app.use(
   "/api/recruiter",
   recruiterCompanyProfileRoutes
 );
 
-// Keep the 404 handler after all valid routes.
+app.use(
+  "/api/recruiter",
+  recruiterJobRoutes
+);
 
 app.use((request, response) => {
-  response.status(404).json({
+  return response.status(404).json({
     success: false,
     message: "API route not found",
   });
