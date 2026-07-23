@@ -8,6 +8,25 @@ import {
     "http://localhost:5000/api"
   ).replace(/\/$/, "");
   
+  export const
+    PROFILE_DATA_CHANGED_EVENT =
+      "campuste:profile-data-changed";
+  
+  function notifyProfileDataChanged() {
+    if (
+      typeof window ===
+      "undefined"
+    ) {
+      return;
+    }
+  
+    window.dispatchEvent(
+      new CustomEvent(
+        PROFILE_DATA_CHANGED_EVENT
+      )
+    );
+  }
+  
   async function throwResponseError(
     response,
     fallbackMessage
@@ -21,10 +40,11 @@ import {
       responseData = {};
     }
   
-    const error = new Error(
-      responseData.message ||
-        fallbackMessage
-    );
+    const error =
+      new Error(
+        responseData.message ||
+          fallbackMessage
+      );
   
     error.status =
       response.status;
@@ -46,16 +66,33 @@ import {
     );
   }
   
-  export function updateStudentProfileRequest({
+  export async function updateStudentProfileRequest({
     token,
     profile,
   }) {
+    const response =
+      await apiRequest(
+        "/student/profile",
+        {
+          method: "PUT",
+          token,
+          body: profile,
+        }
+      );
+  
+    notifyProfileDataChanged();
+  
+    return response;
+  }
+  
+  export function getStudentProfileCompletionRequest({
+    token,
+  }) {
     return apiRequest(
-      "/student/profile",
+      "/student/profile-completion",
       {
-        method: "PUT",
+        method: "GET",
         token,
-        body: profile,
       }
     );
   }
@@ -74,46 +111,61 @@ import {
     );
   }
   
-  export function createStudentSkillRequest({
+  export async function createStudentSkillRequest({
     token,
     skill,
   }) {
-    return apiRequest(
-      "/student/skills",
-      {
-        method: "POST",
-        token,
-        body: skill,
-      }
-    );
+    const response =
+      await apiRequest(
+        "/student/skills",
+        {
+          method: "POST",
+          token,
+          body: skill,
+        }
+      );
+  
+    notifyProfileDataChanged();
+  
+    return response;
   }
   
-  export function updateStudentSkillRequest({
+  export async function updateStudentSkillRequest({
     token,
     skillId,
     skill,
   }) {
-    return apiRequest(
-      `/student/skills/${skillId}`,
-      {
-        method: "PUT",
-        token,
-        body: skill,
-      }
-    );
+    const response =
+      await apiRequest(
+        `/student/skills/${skillId}`,
+        {
+          method: "PUT",
+          token,
+          body: skill,
+        }
+      );
+  
+    notifyProfileDataChanged();
+  
+    return response;
   }
   
-  export function deleteStudentSkillRequest({
+  export async function deleteStudentSkillRequest({
     token,
     skillId,
   }) {
-    return apiRequest(
-      `/student/skills/${skillId}`,
-      {
-        method: "DELETE",
-        token,
-      }
-    );
+    const response =
+      await apiRequest(
+        `/student/skills/${skillId}`,
+        {
+          method: "DELETE",
+          token,
+        }
+      );
+  
+    notifyProfileDataChanged();
+  
+    return response;
   }
   
   // Student projects
@@ -130,46 +182,61 @@ import {
     );
   }
   
-  export function createStudentProjectRequest({
+  export async function createStudentProjectRequest({
     token,
     project,
   }) {
-    return apiRequest(
-      "/student/projects",
-      {
-        method: "POST",
-        token,
-        body: project,
-      }
-    );
+    const response =
+      await apiRequest(
+        "/student/projects",
+        {
+          method: "POST",
+          token,
+          body: project,
+        }
+      );
+  
+    notifyProfileDataChanged();
+  
+    return response;
   }
   
-  export function updateStudentProjectRequest({
+  export async function updateStudentProjectRequest({
     token,
     projectId,
     project,
   }) {
-    return apiRequest(
-      `/student/projects/${projectId}`,
-      {
-        method: "PUT",
-        token,
-        body: project,
-      }
-    );
+    const response =
+      await apiRequest(
+        `/student/projects/${projectId}`,
+        {
+          method: "PUT",
+          token,
+          body: project,
+        }
+      );
+  
+    notifyProfileDataChanged();
+  
+    return response;
   }
   
-  export function deleteStudentProjectRequest({
+  export async function deleteStudentProjectRequest({
     token,
     projectId,
   }) {
-    return apiRequest(
-      `/student/projects/${projectId}`,
-      {
-        method: "DELETE",
-        token,
-      }
-    );
+    const response =
+      await apiRequest(
+        `/student/projects/${projectId}`,
+        {
+          method: "DELETE",
+          token,
+        }
+      );
+  
+    notifyProfileDataChanged();
+  
+    return response;
   }
   
   // Student certifications
@@ -186,46 +253,61 @@ import {
     );
   }
   
-  export function createStudentCertificationRequest({
+  export async function createStudentCertificationRequest({
     token,
     certification,
   }) {
-    return apiRequest(
-      "/student/certifications",
-      {
-        method: "POST",
-        token,
-        body: certification,
-      }
-    );
+    const response =
+      await apiRequest(
+        "/student/certifications",
+        {
+          method: "POST",
+          token,
+          body: certification,
+        }
+      );
+  
+    notifyProfileDataChanged();
+  
+    return response;
   }
   
-  export function updateStudentCertificationRequest({
+  export async function updateStudentCertificationRequest({
     token,
     certificationId,
     certification,
   }) {
-    return apiRequest(
-      `/student/certifications/${certificationId}`,
-      {
-        method: "PUT",
-        token,
-        body: certification,
-      }
-    );
+    const response =
+      await apiRequest(
+        `/student/certifications/${certificationId}`,
+        {
+          method: "PUT",
+          token,
+          body: certification,
+        }
+      );
+  
+    notifyProfileDataChanged();
+  
+    return response;
   }
   
-  export function deleteStudentCertificationRequest({
+  export async function deleteStudentCertificationRequest({
     token,
     certificationId,
   }) {
-    return apiRequest(
-      `/student/certifications/${certificationId}`,
-      {
-        method: "DELETE",
-        token,
-      }
-    );
+    const response =
+      await apiRequest(
+        `/student/certifications/${certificationId}`,
+        {
+          method: "DELETE",
+          token,
+        }
+      );
+  
+    notifyProfileDataChanged();
+  
+    return response;
   }
   
   // Student experiences
@@ -242,46 +324,61 @@ import {
     );
   }
   
-  export function createStudentExperienceRequest({
+  export async function createStudentExperienceRequest({
     token,
     experience,
   }) {
-    return apiRequest(
-      "/student/experiences",
-      {
-        method: "POST",
-        token,
-        body: experience,
-      }
-    );
+    const response =
+      await apiRequest(
+        "/student/experiences",
+        {
+          method: "POST",
+          token,
+          body: experience,
+        }
+      );
+  
+    notifyProfileDataChanged();
+  
+    return response;
   }
   
-  export function updateStudentExperienceRequest({
+  export async function updateStudentExperienceRequest({
     token,
     experienceId,
     experience,
   }) {
-    return apiRequest(
-      `/student/experiences/${experienceId}`,
-      {
-        method: "PUT",
-        token,
-        body: experience,
-      }
-    );
+    const response =
+      await apiRequest(
+        `/student/experiences/${experienceId}`,
+        {
+          method: "PUT",
+          token,
+          body: experience,
+        }
+      );
+  
+    notifyProfileDataChanged();
+  
+    return response;
   }
   
-  export function deleteStudentExperienceRequest({
+  export async function deleteStudentExperienceRequest({
     token,
     experienceId,
   }) {
-    return apiRequest(
-      `/student/experiences/${experienceId}`,
-      {
-        method: "DELETE",
-        token,
-      }
-    );
+    const response =
+      await apiRequest(
+        `/student/experiences/${experienceId}`,
+        {
+          method: "DELETE",
+          token,
+        }
+      );
+  
+    notifyProfileDataChanged();
+  
+    return response;
   }
   
   // Student resume
@@ -332,7 +429,12 @@ import {
       );
     }
   
-    return response.json();
+    const responseData =
+      await response.json();
+  
+    notifyProfileDataChanged();
+  
+    return responseData;
   }
   
   export async function getStudentResumeFileRequest({
@@ -364,14 +466,19 @@ import {
     return response.blob();
   }
   
-  export function deleteStudentResumeRequest({
+  export async function deleteStudentResumeRequest({
     token,
   }) {
-    return apiRequest(
-      "/student/resume",
-      {
-        method: "DELETE",
-        token,
-      }
-    );
+    const response =
+      await apiRequest(
+        "/student/resume",
+        {
+          method: "DELETE",
+          token,
+        }
+      );
+  
+    notifyProfileDataChanged();
+  
+    return response;
   }

@@ -6,6 +6,10 @@ import {
 } from "../controllers/studentController.js";
 
 import {
+  getStudentProfileCompletion,
+} from "../controllers/studentProfileCompletionController.js";
+
+import {
   addStudentSkill,
   editStudentSkill,
   getStudentSkills,
@@ -69,6 +73,11 @@ studentRouter.get(
 studentRouter.put(
   "/profile",
   updateStudentProfile
+);
+
+studentRouter.get(
+  "/profile-completion",
+  getStudentProfileCompletion
 );
 
 // Student skills
