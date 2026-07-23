@@ -1,39 +1,40 @@
-import { Bookmark, ArrowRight } from "lucide-react";
+import {
+  Bookmark,
+  LockKeyhole,
+} from "lucide-react";
 
 function SavedJobs() {
   return (
     <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-
-      <div className="flex items-center justify-between">
-
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-
-          <Bookmark className="text-blue-600" size={24} />
+          <Bookmark
+            className="text-blue-600"
+            size={24}
+          />
 
           <div>
-
-            <h2 className="text-xl font-bold">
+            <h2 className="text-xl font-bold text-neutral-900">
               Saved Jobs
             </h2>
 
             <p className="text-neutral-500">
-              You have 12 bookmarked opportunities.
+              Job bookmarking will be
+              added with the application
+              workflow.
             </p>
-
           </div>
-
         </div>
 
-        <button className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-white transition hover:bg-blue-700">
-
-          View All
-
-          <ArrowRight size={18} />
-
+        <button
+          type="button"
+          disabled
+          className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-neutral-100 px-5 py-3 font-semibold text-neutral-400"
+        >
+          <LockKeyhole size={17} />
+          Coming Soon
         </button>
-
       </div>
-
     </section>
   );
 }

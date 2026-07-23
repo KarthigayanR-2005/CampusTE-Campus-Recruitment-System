@@ -1,17 +1,20 @@
 import JobCard from "./JobCard";
 
-function JobGrid({ jobs, onViewDetails }) {
+function JobGrid({
+  jobs,
+  onViewDetails,
+}) {
   return (
     <section className="grid gap-6">
-
       {jobs.map((job) => (
         <JobCard
-          key={job.id}
+          key={job.jobId}
           job={job}
-          onViewDetails={onViewDetails}
+          onViewDetails={
+            onViewDetails
+          }
         />
       ))}
-
     </section>
   );
 }

@@ -43,16 +43,35 @@ const [
     default:
       recruiterJobRoutes,
   },
+  {
+    default:
+      studentJobRoutes,
+  },
 ] = await Promise.all([
   import("./src/config/database.js"),
-  import("./src/routes/authRoutes.js"),
-  import("./src/routes/adminRoutes.js"),
-  import("./src/routes/studentRoutes.js"),
+
+  import(
+    "./src/routes/authRoutes.js"
+  ),
+
+  import(
+    "./src/routes/adminRoutes.js"
+  ),
+
+  import(
+    "./src/routes/studentRoutes.js"
+  ),
+
   import(
     "./src/routes/recruiterCompanyProfileRoutes.js"
   ),
+
   import(
     "./src/routes/recruiterJobRoutes.js"
+  ),
+
+  import(
+    "./src/routes/studentJobRoutes.js"
   ),
 ]);
 
@@ -75,7 +94,7 @@ app.use(
 app.use(express.json());
 
 app.get("/", (request, response) => {
-  response.status(200).json({
+  return response.status(200).json({
     success: true,
     message:
       "CampusTE backend server is running",
@@ -143,6 +162,11 @@ app.use(
 app.use(
   "/api/student",
   studentRoutes
+);
+
+app.use(
+  "/api/student",
+  studentJobRoutes
 );
 
 app.use(

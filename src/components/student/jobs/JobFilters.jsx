@@ -1,113 +1,159 @@
-import { Filter, RotateCcw } from "lucide-react";
+import {
+  Filter,
+  RotateCcw,
+} from "lucide-react";
 
 function JobFilters({
   filters,
   setFilters,
+  onReset,
 }) {
-  const handleChange = (field, value) => {
-    setFilters((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const resetFilters = () => {
-    setFilters({
-      location: "",
-      type: "",
-      mode: "",
-      experience: "",
-      category: "",
-    });
+  const handleChange = (
+    field,
+    value
+  ) => {
+    setFilters(
+      (previousFilters) => ({
+        ...previousFilters,
+        [field]: value,
+      })
+    );
   };
 
   return (
     <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-
-      <div className="mb-6 flex items-center justify-between">
-
+      <div className="mb-6 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-
           <Filter
             className="text-blue-600"
             size={22}
           />
 
-          <h2 className="text-xl font-bold">
+          <h2 className="text-xl font-bold text-neutral-900">
             Filters
           </h2>
-
         </div>
 
         <button
-          onClick={resetFilters}
+          type="button"
+          onClick={onReset}
           className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
         >
-
           <RotateCcw size={16} />
-
-          Reset Filters
-
+          Reset
         </button>
-
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
-
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <select
           value={filters.type}
-          onChange={(e) => handleChange("type", e.target.value)}
-          className="rounded-xl border border-neutral-300 p-3"
+          onChange={(event) =>
+            handleChange(
+              "type",
+              event.target.value
+            )
+          }
+          className="rounded-xl border border-neutral-300 bg-white p-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
         >
-          <option value="">Job Type</option>
-          <option>Internship</option>
-          <option>Full Time</option>
-          <option>Part Time</option>
+          <option value="">
+            All employment types
+          </option>
+          <option value="Full-time">
+            Full-time
+          </option>
+          <option value="Part-time">
+            Part-time
+          </option>
+          <option value="Internship">
+            Internship
+          </option>
+          <option value="Contract">
+            Contract
+          </option>
+          <option value="Graduate Trainee">
+            Graduate Trainee
+          </option>
         </select>
 
         <select
           value={filters.mode}
-          onChange={(e) => handleChange("mode", e.target.value)}
-          className="rounded-xl border border-neutral-300 p-3"
+          onChange={(event) =>
+            handleChange(
+              "mode",
+              event.target.value
+            )
+          }
+          className="rounded-xl border border-neutral-300 bg-white p-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
         >
-          <option value="">Work Mode</option>
-          <option>Remote</option>
-          <option>Hybrid</option>
-          <option>On-site</option>
+          <option value="">
+            All work modes
+          </option>
+          <option value="On-site">
+            On-site
+          </option>
+          <option value="Hybrid">
+            Hybrid
+          </option>
+          <option value="Remote">
+            Remote
+          </option>
         </select>
 
         <select
-          value={filters.experience}
-          onChange={(e) => handleChange("experience", e.target.value)}
-          className="rounded-xl border border-neutral-300 p-3"
+          value={
+            filters.experience
+          }
+          onChange={(event) =>
+            handleChange(
+              "experience",
+              event.target.value
+            )
+          }
+          className="rounded-xl border border-neutral-300 bg-white p-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
         >
-          <option value="">Experience</option>
-          <option>Fresher</option>
-          <option>0-2 Years</option>
-          <option>2-5 Years</option>
+          <option value="">
+            All experience levels
+          </option>
+          <option value="Fresher">
+            Fresher
+          </option>
+          <option value="0 - 1 Year">
+            0 - 1 Year
+          </option>
+          <option value="1 - 2 Years">
+            1 - 2 Years
+          </option>
+          <option value="2 - 4 Years">
+            2 - 4 Years
+          </option>
+          <option value="4+ Years">
+            4+ Years
+          </option>
         </select>
 
         <select
-          value={filters.category}
-          onChange={(e) => handleChange("category", e.target.value)}
-          className="rounded-xl border border-neutral-300 p-3"
+          value={
+            filters.eligibility
+          }
+          onChange={(event) =>
+            handleChange(
+              "eligibility",
+              event.target.value
+            )
+          }
+          className="rounded-xl border border-neutral-300 bg-white p-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
         >
-          <option value="">Category</option>
-          <option>Software Development</option>
-          <option>Artificial Intelligence</option>
-          <option>UI/UX</option>
+          <option value="">
+            All eligibility results
+          </option>
+          <option value="eligible">
+            Eligible
+          </option>
+          <option value="not_eligible">
+            Not eligible
+          </option>
         </select>
-
-        <input
-          type="text"
-          placeholder="Location"
-          value={filters.location}
-          onChange={(e) => handleChange("location", e.target.value)}
-          className="rounded-xl border border-neutral-300 p-3"
-        />
-
       </div>
-
     </section>
   );
 }
