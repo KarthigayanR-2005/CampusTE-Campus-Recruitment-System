@@ -34,12 +34,23 @@ import {
 } from "../controllers/studentExperienceController.js";
 
 import {
+  deleteStudentResume,
+  getStudentResume,
+  getStudentResumeFile,
+  uploadStudentResume,
+} from "../controllers/studentResumeController.js";
+
+import {
   authenticate,
 } from "../middleware/authenticate.js";
 
 import {
   authorizeRoles,
 } from "../middleware/authorizeRoles.js";
+
+import {
+  uploadSingleResume,
+} from "../middleware/resumeUpload.js";
 
 const studentRouter = Router();
 
@@ -146,6 +157,29 @@ studentRouter.put(
 studentRouter.delete(
   "/experiences/:experienceId",
   removeStudentExperience
+);
+
+// Student resume
+
+studentRouter.get(
+  "/resume/file",
+  getStudentResumeFile
+);
+
+studentRouter.get(
+  "/resume",
+  getStudentResume
+);
+
+studentRouter.post(
+  "/resume",
+  uploadSingleResume,
+  uploadStudentResume
+);
+
+studentRouter.delete(
+  "/resume",
+  deleteStudentResume
 );
 
 export default studentRouter;
