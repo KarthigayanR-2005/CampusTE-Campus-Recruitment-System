@@ -1,6 +1,10 @@
 import { Router } from "express";
 
 import {
+  getStudentDashboard,
+} from "../controllers/studentDashboardController.js";
+
+import {
   getStudentProfile,
   updateStudentProfile,
 } from "../controllers/studentController.js";
@@ -61,6 +65,13 @@ const studentRouter = Router();
 studentRouter.use(
   authenticate,
   authorizeRoles("student")
+);
+
+// Student dashboard
+
+studentRouter.get(
+  "/dashboard",
+  getStudentDashboard
 );
 
 // Student profile

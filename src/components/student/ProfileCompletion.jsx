@@ -1,95 +1,121 @@
-import { CheckCircle2, Circle, ArrowRight } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Circle,
+} from "lucide-react";
 
-const completion = 85;
+import {
+  useNavigate,
+} from "react-router-dom";
 
-const checklist = [
-  { title: "Basic Information", completed: true },
-  { title: "Resume Uploaded", completed: true },
-  { title: "Skills Added", completed: true },
-  { title: "Projects Added", completed: true },
-  { title: "Certifications", completed: false },
-];
+function ProfileCompletion({
+  completion,
+}) {
+  const navigate = useNavigate();
 
-function ProfileCompletion() {
+  const percentage =
+    Number(
+      completion.percentage
+    ) || 0;
+
+  const sections =
+    Array.isArray(
+      completion.sections
+    )
+      ? completion.sections
+      : [];
+
   return (
     <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-
-      <div className="flex items-center justify-between">
-
+      <div className="flex items-start justify-between gap-4">
         <div>
-
           <h2 className="text-xl font-bold text-neutral-900">
             Profile Completion
           </h2>
 
-          <p className="mt-1 text-neutral-600">
-            Complete your profile to improve job recommendations.
+          <p className="mt-1 text-sm text-neutral-600">
+            Complete your profile to
+            improve future job
+            recommendations.
           </p>
-
         </div>
 
         <span className="text-3xl font-bold text-blue-600">
-          {completion}%
+          {percentage}%
         </span>
-
       </div>
-
-      {/* Progress Bar */}
 
       <div className="mt-6 h-3 overflow-hidden rounded-full bg-neutral-200">
-
         <div
-          className="h-full rounded-full bg-gradient-to-r from-blue-600 to-purple-600"
-          style={{ width: `${completion}%` }}
+          className="h-full rounded-full bg-gradient-to-r from-blue-600 to-purple-600 transition-all duration-500"
+          style={{
+            width: `${percentage}%`,
+          }}
         />
-
       </div>
 
-      {/* Checklist */}
+      <p className="mt-2 text-xs text-neutral-500">
+        {completion.completedSections ||
+          0}{" "}
+        of{" "}
+        {completion.totalSections || 8}{" "}
+        sections complete
+      </p>
 
-      <div className="mt-8 space-y-4">
+      <div className="mt-7 space-y-4">
+        {sections.map((section) => {
+          const completed =
+            section.status ===
+            "completed";
 
-        {checklist.map((item) => (
-          <div
-            key={item.title}
-            className="flex items-center gap-3"
-          >
-            {item.completed ? (
-              <CheckCircle2
-                size={20}
-                className="text-green-500"
-              />
-            ) : (
-              <Circle
-                size={20}
-                className="text-neutral-400"
-              />
-            )}
-
-            <span
-              className={
-                item.completed
-                  ? "font-medium text-neutral-900"
-                  : "text-neutral-500"
-              }
+          return (
+            <div
+              key={section.key}
+              className="flex items-center gap-3"
             >
-              {item.title}
-            </span>
-          </div>
-        ))}
+              {completed ? (
+                <CheckCircle2
+                  size={20}
+                  className="shrink-0 text-green-500"
+                />
+              ) : (
+                <Circle
+                  size={20}
+                  className="shrink-0 text-neutral-400"
+                />
+              )}
 
+              <span
+                className={
+                  completed
+                    ? "min-w-0 flex-1 font-medium text-neutral-900"
+                    : "min-w-0 flex-1 text-neutral-500"
+                }
+              >
+                {section.label}
+              </span>
+
+              <span className="text-xs font-semibold text-neutral-500">
+                {section.percentage}%
+              </span>
+            </div>
+          );
+        })}
       </div>
-
-      {/* Button */}
 
       <button
+        type="button"
+        onClick={() =>
+          navigate(
+            "/student/profile"
+          )
+        }
         className="mt-8 flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-3 font-medium text-white transition hover:scale-[1.02]"
       >
         Complete Profile
 
         <ArrowRight size={18} />
       </button>
-
     </section>
   );
 }

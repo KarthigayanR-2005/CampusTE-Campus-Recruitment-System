@@ -52,6 +52,20 @@ import {
     throw error;
   }
   
+  // Student dashboard
+  
+  export function getStudentDashboardRequest({
+    token,
+  }) {
+    return apiRequest(
+      "/student/dashboard",
+      {
+        method: "GET",
+        token,
+      }
+    );
+  }
+  
   // Student profile
   
   export function getStudentProfileRequest({
