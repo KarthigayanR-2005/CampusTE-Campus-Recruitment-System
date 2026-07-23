@@ -1,19 +1,54 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+import {
+  fileURLToPath,
+} from "url";
 
-dotenv.config();
+const currentFilePath =
+  fileURLToPath(import.meta.url);
+
+const currentDirectory =
+  path.dirname(currentFilePath);
+
+const environmentResult =
+  dotenv.config({
+    path: path.join(
+      currentDirectory,
+      ".env"
+    ),
+  });
+
+if (environmentResult.error) {
+  console.error(
+    "Unable to load server/.env:",
+    environmentResult.error.message
+  );
+
+  process.exit(1);
+}
+
+// Import database-dependent modules only
+// after loading the environment variables.
 
 const [
   { testDatabaseConnection },
   { default: authRoutes },
   { default: adminRoutes },
   { default: studentRoutes },
+  {
+    default:
+      recruiterCompanyProfileRoutes,
+  },
 ] = await Promise.all([
   import("./src/config/database.js"),
   import("./src/routes/authRoutes.js"),
   import("./src/routes/adminRoutes.js"),
   import("./src/routes/studentRoutes.js"),
+  import(
+    "./src/routes/recruiterCompanyProfileRoutes.js"
+  ),
 ]);
 
 const app = express();
@@ -35,7 +70,7 @@ app.use(
 app.use(express.json());
 
 app.get("/", (request, response) => {
-  response.json({
+  response.status(200).json({
     success: true,
     message:
       "CampusTE backend server is running",
@@ -52,15 +87,20 @@ app.get(
       response.status(200).json({
         success: true,
         status: "healthy",
+
         message:
           "CampusTE API and database are working",
+
         database: {
           connected: true,
+
           name:
             databaseStatus.databaseName,
+
           serverTime:
             databaseStatus.serverTime,
         },
+
         timestamp:
           new Date().toISOString(),
       });
@@ -73,8 +113,10 @@ app.get(
       response.status(503).json({
         success: false,
         status: "unhealthy",
+
         message:
           "Database connection failed",
+
         database: {
           connected: false,
         },
@@ -83,9 +125,35 @@ app.get(
   }
 );
 
-app.use("/api/auth", authRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/student", studentRoutes);
+// Authentication routes
+
+app.use(
+  "/api/auth",
+  authRoutes
+);
+
+// Admin routes
+
+app.use(
+  "/api/admin",
+  adminRoutes
+);
+
+// Student routes
+
+app.use(
+  "/api/student",
+  studentRoutes
+);
+
+// Recruiter routes
+
+app.use(
+  "/api/recruiter",
+  recruiterCompanyProfileRoutes
+);
+
+// Keep the 404 handler after all valid routes.
 
 app.use((request, response) => {
   response.status(404).json({

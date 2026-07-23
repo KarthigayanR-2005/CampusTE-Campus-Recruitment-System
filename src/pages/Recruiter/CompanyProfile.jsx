@@ -1,48 +1,468 @@
-import { useState } from "react";
 import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  AlertCircle,
   Building2,
+  CalendarDays,
   Camera,
+  CheckCircle2,
+  ExternalLink,
   Globe,
+  LoaderCircle,
   Mail,
   MapPin,
+  Pencil,
   Phone,
   Save,
   Users,
+  X,
 } from "lucide-react";
 
+import {
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  useAuth,
+} from "../../context/AuthContext";
+
+import {
+  getRecruiterCompanyProfileRequest,
+  updateRecruiterCompanyProfileRequest,
+} from "../../services/recruiterService";
+
+const emptyCompany = {
+  companyProfileId: null,
+  companyName: "",
+  industry: "",
+  companySize: "",
+  foundedYear: "",
+  website: "",
+  contactEmail: "",
+  contactPhone: "",
+  headquarters: "",
+  linkedinUrl: "",
+  recruiterName: "",
+  recruiterDesignation: "",
+  description: "",
+  exists: false,
+};
+
+const companySizeOptions = [
+  "1 - 50 Employees",
+  "51 - 200 Employees",
+  "201 - 500 Employees",
+  "501 - 1000 Employees",
+  "1000+ Employees",
+];
+
 function CompanyProfile() {
-  const [isEditing, setIsEditing] = useState(false);
+  const navigate = useNavigate();
 
-  const [company, setCompany] = useState({
-    name: "TechNova Solutions",
-    industry: "Information Technology",
-    size: "201 - 500 Employees",
-    founded: "2018",
-    website: "https://technova.example.com",
-    email: "careers@technova.com",
-    phone: "+91 98765 43210",
-    location: "Bengaluru, Karnataka",
-    hrName: "Ananya Sharma",
-    hrDesignation: "Senior Talent Acquisition Manager",
-    description:
-      "TechNova Solutions is a technology-driven company focused on developing modern software products, cloud solutions, and AI-powered business platforms. We work with talented professionals and students to build meaningful digital experiences.",
-  });
+  const {
+    token,
+    logout,
+  } = useAuth();
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
+  const successTimer =
+    useRef(null);
 
-    setCompany((previousCompany) => ({
-      ...previousCompany,
-      [name]: value,
-    }));
+  const [
+    company,
+    setCompany,
+  ] = useState(emptyCompany);
+
+  const [
+    savedCompany,
+    setSavedCompany,
+  ] = useState(emptyCompany);
+
+  const [
+    isEditing,
+    setIsEditing,
+  ] = useState(false);
+
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
+
+  const [
+    isSaving,
+    setIsSaving,
+  ] = useState(false);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  const [
+    successMessage,
+    setSuccessMessage,
+  ] = useState("");
+
+  const handleAuthenticationError =
+    useCallback(
+      (error) => {
+        if (error.status === 401) {
+          logout();
+
+          navigate("/login", {
+            replace: true,
+          });
+
+          return true;
+        }
+
+        return false;
+      },
+      [logout, navigate]
+    );
+
+  const loadCompanyProfile =
+    useCallback(async () => {
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setErrorMessage("");
+
+      try {
+        const response =
+          await getRecruiterCompanyProfileRequest({
+            token,
+          });
+
+        const loadedProfile = {
+          ...emptyCompany,
+          ...response.profile,
+        };
+
+        setCompany(loadedProfile);
+        setSavedCompany(
+          loadedProfile
+        );
+
+        setIsEditing(
+          !loadedProfile.exists
+        );
+      } catch (error) {
+        if (
+          handleAuthenticationError(
+            error
+          )
+        ) {
+          return;
+        }
+
+        setErrorMessage(
+          error.message ||
+            "Unable to load the company profile."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }, [
+      token,
+      handleAuthenticationError,
+    ]);
+
+  useEffect(() => {
+    loadCompanyProfile();
+  }, [loadCompanyProfile]);
+
+  useEffect(() => {
+    return () => {
+      if (successTimer.current) {
+        window.clearTimeout(
+          successTimer.current
+        );
+      }
+    };
+  }, []);
+
+  const handleChange = (
+    event
+  ) => {
+    const {
+      name,
+      value,
+    } = event.target;
+
+    setCompany(
+      (previousCompany) => ({
+        ...previousCompany,
+        [name]: value,
+      })
+    );
+
+    setErrorMessage("");
+    setSuccessMessage("");
   };
 
-  const handleSave = () => {
+  const validateForm = () => {
+    if (
+      !company.companyName.trim()
+    ) {
+      return "Company name is required.";
+    }
+
+    if (!company.industry.trim()) {
+      return "Industry is required.";
+    }
+
+    if (!company.companySize) {
+      return "Select the company size.";
+    }
+
+    if (
+      company.foundedYear &&
+      (
+        Number(
+          company.foundedYear
+        ) < 1800 ||
+        Number(
+          company.foundedYear
+        ) >
+          new Date().getFullYear()
+      )
+    ) {
+      return "Enter a valid founded year.";
+    }
+
+    if (
+      !company.contactEmail.trim()
+    ) {
+      return "Company contact email is required.";
+    }
+
+    if (
+      !company.contactPhone.trim()
+    ) {
+      return "Company contact phone is required.";
+    }
+
+    if (
+      !company.headquarters.trim()
+    ) {
+      return "Company headquarters is required.";
+    }
+
+    if (
+      !company.recruiterName.trim()
+    ) {
+      return "Recruiter or HR name is required.";
+    }
+
+    if (
+      !company.recruiterDesignation.trim()
+    ) {
+      return "Recruiter designation is required.";
+    }
+
+    if (
+      company.description
+        .trim()
+        .length < 20
+    ) {
+      return "Company description must contain at least 20 characters.";
+    }
+
+    return "";
+  };
+
+  const handleSave = async (
+    event
+  ) => {
+    event.preventDefault();
+
+    if (!isEditing) {
+      setIsEditing(true);
+      return;
+    }
+
+    const validationError =
+      validateForm();
+
+    if (validationError) {
+      setErrorMessage(
+        validationError
+      );
+
+      return;
+    }
+
+    setIsSaving(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const response =
+        await updateRecruiterCompanyProfileRequest({
+          token,
+
+          profile: {
+            companyName:
+              company.companyName.trim(),
+
+            industry:
+              company.industry.trim(),
+
+            companySize:
+              company.companySize,
+
+            foundedYear:
+              company.foundedYear,
+
+            website:
+              company.website.trim(),
+
+            contactEmail:
+              company.contactEmail.trim(),
+
+            contactPhone:
+              company.contactPhone.trim(),
+
+            headquarters:
+              company.headquarters.trim(),
+
+            linkedinUrl:
+              company.linkedinUrl.trim(),
+
+            recruiterName:
+              company.recruiterName.trim(),
+
+            recruiterDesignation:
+              company.recruiterDesignation.trim(),
+
+            description:
+              company.description.trim(),
+          },
+        });
+
+      const updatedProfile = {
+        ...emptyCompany,
+        ...response.profile,
+      };
+
+      setCompany(
+        updatedProfile
+      );
+
+      setSavedCompany(
+        updatedProfile
+      );
+
+      setIsEditing(false);
+
+      setSuccessMessage(
+        response.message ||
+          "Company profile saved successfully."
+      );
+
+      if (successTimer.current) {
+        window.clearTimeout(
+          successTimer.current
+        );
+      }
+
+      successTimer.current =
+        window.setTimeout(() => {
+          setSuccessMessage("");
+        }, 4000);
+    } catch (error) {
+      if (
+        handleAuthenticationError(
+          error
+        )
+      ) {
+        return;
+      }
+
+      setErrorMessage(
+        error.message ||
+          "Unable to save the company profile."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setCompany(savedCompany);
     setIsEditing(false);
+    setErrorMessage("");
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[500px] flex-col items-center justify-center rounded-3xl border border-neutral-200 bg-white">
+        <LoaderCircle
+          size={38}
+          className="animate-spin text-blue-700"
+        />
+
+        <h2 className="mt-5 text-xl font-bold text-neutral-900">
+          Loading company profile
+        </h2>
+
+        <p className="mt-2 text-neutral-600">
+          Retrieving recruiter and
+          company information.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8">
+    <form
+      onSubmit={handleSave}
+      className="space-y-8"
+    >
+      {successMessage && (
+        <div
+          role="status"
+          className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 font-semibold text-emerald-700"
+        >
+          <CheckCircle2 size={20} />
+          {successMessage}
+        </div>
+      )}
+
+      {errorMessage && (
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 font-semibold text-rose-700"
+        >
+          <AlertCircle
+            size={20}
+            className="mt-0.5 shrink-0"
+          />
+
+          <div>
+            <p>{errorMessage}</p>
+
+            <button
+              type="button"
+              onClick={
+                loadCompanyProfile
+              }
+              className="mt-2 text-sm underline"
+            >
+              Reload profile
+            </button>
+          </div>
+        </div>
+      )}
+
       <section className="overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-sm">
         <div className="h-40 bg-gradient-to-r from-blue-600 to-purple-600" />
 
@@ -54,8 +474,10 @@ function CompanyProfile() {
 
                 <button
                   type="button"
-                  className="absolute -bottom-2 -right-2 flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white shadow-md transition hover:bg-blue-700"
-                  aria-label="Change company logo"
+                  disabled
+                  title="Company logo upload will be added later"
+                  className="absolute -bottom-2 -right-2 flex h-10 w-10 cursor-not-allowed items-center justify-center rounded-full bg-neutral-500 text-white opacity-70 shadow-md"
+                  aria-label="Company logo upload coming soon"
                 >
                   <Camera size={18} />
                 </button>
@@ -67,38 +489,76 @@ function CompanyProfile() {
                 </p>
 
                 <h1 className="mt-2 text-3xl font-bold text-neutral-900">
-                  {company.name}
+                  {company.companyName ||
+                    "Your Company"}
                 </h1>
 
                 <div className="mt-3 flex flex-wrap gap-4 text-sm text-neutral-600">
                   <span className="inline-flex items-center gap-2">
-                    <Building2 size={16} />
-                    {company.industry}
+                    <Building2
+                      size={16}
+                    />
+
+                    {company.industry ||
+                      "Industry"}
                   </span>
 
                   <span className="inline-flex items-center gap-2">
                     <MapPin size={16} />
-                    {company.location}
+
+                    {company.headquarters ||
+                      "Headquarters"}
                   </span>
 
                   <span className="inline-flex items-center gap-2">
                     <Users size={16} />
-                    {company.size}
+
+                    {company.companySize ||
+                      "Company size"}
                   </span>
                 </div>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                isEditing ? handleSave() : setIsEditing(true)
-              }
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-3 font-semibold text-white transition hover:scale-[1.02] hover:shadow-lg"
-            >
-              <Save size={18} />
-              {isEditing ? "Save Changes" : "Edit Profile"}
-            </button>
+            <div className="flex flex-wrap gap-3">
+              {isEditing &&
+                company.exists && (
+                  <button
+                    type="button"
+                    onClick={
+                      handleCancel
+                    }
+                    disabled={isSaving}
+                    className="inline-flex items-center gap-2 rounded-xl border border-neutral-300 px-5 py-3 font-semibold text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
+                  >
+                    <X size={18} />
+                    Cancel
+                  </button>
+                )}
+
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-3 font-semibold text-white transition hover:scale-[1.02] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSaving ? (
+                  <LoaderCircle
+                    size={18}
+                    className="animate-spin"
+                  />
+                ) : isEditing ? (
+                  <Save size={18} />
+                ) : (
+                  <Pencil size={18} />
+                )}
+
+                {isSaving
+                  ? "Saving..."
+                  : isEditing
+                    ? "Save Changes"
+                    : "Edit Profile"}
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -111,89 +571,168 @@ function CompanyProfile() {
             </h2>
 
             <p className="mt-2 text-neutral-600">
-              Manage the information visible to students and applicants.
+              Manage the information
+              visible to students and
+              applicants.
             </p>
           </div>
 
           <div className="mt-8 grid gap-6 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-semibold text-neutral-700">
+              <label
+                htmlFor="companyName"
+                className="mb-2 block text-sm font-semibold text-neutral-700"
+              >
                 Company Name
               </label>
 
               <input
+                id="companyName"
                 type="text"
-                name="name"
-                value={company.name}
+                name="companyName"
+                value={
+                  company.companyName
+                }
                 onChange={handleChange}
-                disabled={!isEditing}
+                disabled={
+                  !isEditing ||
+                  isSaving
+                }
                 className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 outline-none transition disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-600 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-neutral-700">
+              <label
+                htmlFor="industry"
+                className="mb-2 block text-sm font-semibold text-neutral-700"
+              >
                 Industry
               </label>
 
               <input
+                id="industry"
                 type="text"
                 name="industry"
                 value={company.industry}
                 onChange={handleChange}
-                disabled={!isEditing}
+                disabled={
+                  !isEditing ||
+                  isSaving
+                }
+                placeholder="Example: Information Technology"
                 className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 outline-none transition disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-600 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-neutral-700">
+              <label
+                htmlFor="companySize"
+                className="mb-2 block text-sm font-semibold text-neutral-700"
+              >
                 Company Size
               </label>
 
               <select
-                name="size"
-                value={company.size}
+                id="companySize"
+                name="companySize"
+                value={
+                  company.companySize
+                }
                 onChange={handleChange}
-                disabled={!isEditing}
+                disabled={
+                  !isEditing ||
+                  isSaving
+                }
                 className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 outline-none transition disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-600 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
               >
-                <option>1 - 50 Employees</option>
-                <option>51 - 200 Employees</option>
-                <option>201 - 500 Employees</option>
-                <option>501 - 1000 Employees</option>
-                <option>1000+ Employees</option>
+                <option value="">
+                  Select company size
+                </option>
+
+                {companySizeOptions.map(
+                  (size) => (
+                    <option
+                      key={size}
+                      value={size}
+                    >
+                      {size}
+                    </option>
+                  )
+                )}
               </select>
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-neutral-700">
+              <label
+                htmlFor="foundedYear"
+                className="mb-2 block text-sm font-semibold text-neutral-700"
+              >
                 Founded Year
               </label>
 
-              <input
-                type="number"
-                name="founded"
-                value={company.founded}
-                onChange={handleChange}
-                disabled={!isEditing}
-                className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 outline-none transition disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-600 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-              />
+              <div className="relative">
+                <CalendarDays
+                  size={18}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400"
+                />
+
+                <input
+                  id="foundedYear"
+                  type="number"
+                  name="foundedYear"
+                  min="1800"
+                  max={
+                    new Date()
+                      .getFullYear()
+                  }
+                  value={
+                    company.foundedYear
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  disabled={
+                    !isEditing ||
+                    isSaving
+                  }
+                  className="w-full rounded-xl border border-neutral-300 bg-white py-3 pl-11 pr-4 outline-none transition disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-600 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                />
+              </div>
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-semibold text-neutral-700">
+              <label
+                htmlFor="companyDescription"
+                className="mb-2 block text-sm font-semibold text-neutral-700"
+              >
                 Company Description
               </label>
 
               <textarea
+                id="companyDescription"
                 name="description"
-                value={company.description}
+                value={
+                  company.description
+                }
                 onChange={handleChange}
-                disabled={!isEditing}
-                rows={6}
+                disabled={
+                  !isEditing ||
+                  isSaving
+                }
+                rows={7}
+                maxLength={3000}
+                placeholder="Describe your company, products, services and workplace."
                 className="w-full resize-none rounded-xl border border-neutral-300 bg-white px-4 py-3 leading-7 outline-none transition disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-600 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
               />
+
+              <p className="mt-2 text-right text-xs text-neutral-500">
+                {
+                  company.description
+                    .length
+                }
+                /3000
+              </p>
             </div>
           </div>
         </section>
@@ -206,7 +745,10 @@ function CompanyProfile() {
 
             <div className="mt-6 space-y-5">
               <div>
-                <label className="mb-2 block text-sm font-semibold text-neutral-700">
+                <label
+                  htmlFor="companyWebsite"
+                  className="mb-2 block text-sm font-semibold text-neutral-700"
+                >
                   Website
                 </label>
 
@@ -217,19 +759,31 @@ function CompanyProfile() {
                   />
 
                   <input
+                    id="companyWebsite"
                     type="url"
                     name="website"
-                    value={company.website}
-                    onChange={handleChange}
-                    disabled={!isEditing}
+                    value={
+                      company.website
+                    }
+                    onChange={
+                      handleChange
+                    }
+                    disabled={
+                      !isEditing ||
+                      isSaving
+                    }
+                    placeholder="https://company.com"
                     className="w-full rounded-xl border border-neutral-300 bg-white py-3 pl-11 pr-4 outline-none transition disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-600 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-neutral-700">
-                  Email
+                <label
+                  htmlFor="contactEmail"
+                  className="mb-2 block text-sm font-semibold text-neutral-700"
+                >
+                  Contact Email
                 </label>
 
                 <div className="relative">
@@ -239,19 +793,30 @@ function CompanyProfile() {
                   />
 
                   <input
+                    id="contactEmail"
                     type="email"
-                    name="email"
-                    value={company.email}
-                    onChange={handleChange}
-                    disabled={!isEditing}
+                    name="contactEmail"
+                    value={
+                      company.contactEmail
+                    }
+                    onChange={
+                      handleChange
+                    }
+                    disabled={
+                      !isEditing ||
+                      isSaving
+                    }
                     className="w-full rounded-xl border border-neutral-300 bg-white py-3 pl-11 pr-4 outline-none transition disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-600 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-neutral-700">
-                  Phone
+                <label
+                  htmlFor="contactPhone"
+                  className="mb-2 block text-sm font-semibold text-neutral-700"
+                >
+                  Contact Phone
                 </label>
 
                 <div className="relative">
@@ -261,19 +826,31 @@ function CompanyProfile() {
                   />
 
                   <input
+                    id="contactPhone"
                     type="text"
-                    name="phone"
-                    value={company.phone}
-                    onChange={handleChange}
-                    disabled={!isEditing}
+                    name="contactPhone"
+                    value={
+                      company.contactPhone
+                    }
+                    onChange={
+                      handleChange
+                    }
+                    disabled={
+                      !isEditing ||
+                      isSaving
+                    }
+                    placeholder="+91 98765 43210"
                     className="w-full rounded-xl border border-neutral-300 bg-white py-3 pl-11 pr-4 outline-none transition disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-600 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-neutral-700">
-                  Location
+                <label
+                  htmlFor="headquarters"
+                  className="mb-2 block text-sm font-semibold text-neutral-700"
+                >
+                  Headquarters
                 </label>
 
                 <div className="relative">
@@ -283,11 +860,54 @@ function CompanyProfile() {
                   />
 
                   <input
+                    id="headquarters"
                     type="text"
-                    name="location"
-                    value={company.location}
-                    onChange={handleChange}
-                    disabled={!isEditing}
+                    name="headquarters"
+                    value={
+                      company.headquarters
+                    }
+                    onChange={
+                      handleChange
+                    }
+                    disabled={
+                      !isEditing ||
+                      isSaving
+                    }
+                    placeholder="Bengaluru, Karnataka, India"
+                    className="w-full rounded-xl border border-neutral-300 bg-white py-3 pl-11 pr-4 outline-none transition disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-600 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="linkedinUrl"
+                  className="mb-2 block text-sm font-semibold text-neutral-700"
+                >
+                  LinkedIn URL
+                </label>
+
+                <div className="relative">
+                  <ExternalLink
+                    size={18}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400"
+                  />
+
+                  <input
+                    id="linkedinUrl"
+                    type="url"
+                    name="linkedinUrl"
+                    value={
+                      company.linkedinUrl
+                    }
+                    onChange={
+                      handleChange
+                    }
+                    disabled={
+                      !isEditing ||
+                      isSaving
+                    }
+                    placeholder="https://linkedin.com/company/example"
                     className="w-full rounded-xl border border-neutral-300 bg-white py-3 pl-11 pr-4 outline-none transition disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-600 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
                   />
                 </div>
@@ -297,36 +917,55 @@ function CompanyProfile() {
 
           <section className="rounded-3xl border border-neutral-200 bg-white p-8 shadow-sm">
             <h2 className="text-2xl font-bold text-neutral-900">
-              HR Contact
+              Recruiter Contact
             </h2>
 
             <div className="mt-6 space-y-5">
               <div>
-                <label className="mb-2 block text-sm font-semibold text-neutral-700">
-                  HR Name
+                <label
+                  htmlFor="recruiterName"
+                  className="mb-2 block text-sm font-semibold text-neutral-700"
+                >
+                  Recruiter or HR Name
                 </label>
 
                 <input
+                  id="recruiterName"
                   type="text"
-                  name="hrName"
-                  value={company.hrName}
+                  name="recruiterName"
+                  value={
+                    company.recruiterName
+                  }
                   onChange={handleChange}
-                  disabled={!isEditing}
+                  disabled={
+                    !isEditing ||
+                    isSaving
+                  }
                   className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 outline-none transition disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-600 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-neutral-700">
+                <label
+                  htmlFor="recruiterDesignation"
+                  className="mb-2 block text-sm font-semibold text-neutral-700"
+                >
                   Designation
                 </label>
 
                 <input
+                  id="recruiterDesignation"
                   type="text"
-                  name="hrDesignation"
-                  value={company.hrDesignation}
+                  name="recruiterDesignation"
+                  value={
+                    company.recruiterDesignation
+                  }
                   onChange={handleChange}
-                  disabled={!isEditing}
+                  disabled={
+                    !isEditing ||
+                    isSaving
+                  }
+                  placeholder="Talent Acquisition Manager"
                   className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 outline-none transition disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-600 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
                 />
               </div>
@@ -334,7 +973,7 @@ function CompanyProfile() {
           </section>
         </div>
       </div>
-    </div>
+    </form>
   );
 }
 
