@@ -27,6 +27,13 @@ import {
 } from "../controllers/studentCertificationController.js";
 
 import {
+  addStudentExperience,
+  editStudentExperience,
+  getStudentExperiences,
+  removeStudentExperience,
+} from "../controllers/studentExperienceController.js";
+
+import {
   authenticate,
 } from "../middleware/authenticate.js";
 
@@ -117,6 +124,28 @@ studentRouter.put(
 studentRouter.delete(
   "/certifications/:certificationId",
   removeStudentCertification
+);
+
+// Student experiences
+
+studentRouter.get(
+  "/experiences",
+  getStudentExperiences
+);
+
+studentRouter.post(
+  "/experiences",
+  addStudentExperience
+);
+
+studentRouter.put(
+  "/experiences/:experienceId",
+  editStudentExperience
+);
+
+studentRouter.delete(
+  "/experiences/:experienceId",
+  removeStudentExperience
 );
 
 export default studentRouter;

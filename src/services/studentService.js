@@ -195,3 +195,59 @@ export function deleteStudentCertificationRequest({
     }
   );
 }
+
+// Student experiences
+
+export function getStudentExperiencesRequest({
+  token,
+}) {
+  return apiRequest(
+    "/student/experiences",
+    {
+      method: "GET",
+      token,
+    }
+  );
+}
+
+export function createStudentExperienceRequest({
+  token,
+  experience,
+}) {
+  return apiRequest(
+    "/student/experiences",
+    {
+      method: "POST",
+      token,
+      body: experience,
+    }
+  );
+}
+
+export function updateStudentExperienceRequest({
+  token,
+  experienceId,
+  experience,
+}) {
+  return apiRequest(
+    `/student/experiences/${experienceId}`,
+    {
+      method: "PUT",
+      token,
+      body: experience,
+    }
+  );
+}
+
+export function deleteStudentExperienceRequest({
+  token,
+  experienceId,
+}) {
+  return apiRequest(
+    `/student/experiences/${experienceId}`,
+    {
+      method: "DELETE",
+      token,
+    }
+  );
+}
