@@ -32,28 +32,50 @@ if (environmentResult.error) {
 
 const [
   { testDatabaseConnection },
-  { default: authRoutes },
-  { default: adminRoutes },
-  { default: studentRoutes },
+
+  {
+    default:
+      authRoutes,
+  },
+
+  {
+    default:
+      adminRoutes,
+  },
+
+  {
+    default:
+      studentRoutes,
+  },
+
   {
     default:
       recruiterCompanyProfileRoutes,
   },
+
   {
     default:
       recruiterJobRoutes,
   },
+
   {
     default:
       studentJobRoutes,
   },
+
   {
     default:
       studentApplicationRoutes,
   },
+
   {
     default:
       recruiterApplicantRoutes,
+  },
+
+  {
+    default:
+      recruiterInterviewRoutes,
   },
 ] = await Promise.all([
   import(
@@ -91,6 +113,10 @@ const [
   import(
     "./src/routes/recruiterApplicantRoutes.js"
   ),
+
+  import(
+    "./src/routes/recruiterInterviewRoutes.js"
+  ),
 ]);
 
 const app = express();
@@ -114,6 +140,7 @@ app.use(express.json());
 app.get("/", (request, response) => {
   return response.status(200).json({
     success: true,
+
     message:
       "CampusTE backend server is running",
   });
@@ -207,9 +234,15 @@ app.use(
   recruiterApplicantRoutes
 );
 
+app.use(
+  "/api/recruiter",
+  recruiterInterviewRoutes
+);
+
 app.use((request, response) => {
   return response.status(404).json({
     success: false,
+
     message:
       "API route not found",
   });
