@@ -51,6 +51,10 @@ const [
     default:
       studentApplicationRoutes,
   },
+  {
+    default:
+      recruiterApplicantRoutes,
+  },
 ] = await Promise.all([
   import(
     "./src/config/database.js"
@@ -82,6 +86,10 @@ const [
 
   import(
     "./src/routes/studentApplicationRoutes.js"
+  ),
+
+  import(
+    "./src/routes/recruiterApplicantRoutes.js"
   ),
 ]);
 
@@ -192,6 +200,11 @@ app.use(
 app.use(
   "/api/recruiter",
   recruiterJobRoutes
+);
+
+app.use(
+  "/api/recruiter",
+  recruiterApplicantRoutes
 );
 
 app.use((request, response) => {

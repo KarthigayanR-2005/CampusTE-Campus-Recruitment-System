@@ -39,7 +39,8 @@ function formatDate(value) {
 
 function mapRecruiterJob(row) {
   return {
-    jobId: String(row.job_id),
+    jobId:
+      String(row.job_id),
 
     companyName:
       row.company_name || "",
@@ -108,7 +109,7 @@ function mapRecruiterJob(row) {
     eligibleGraduationYears:
       parseJsonArray(
         row.eligible_graduation_years
-      ),
+      ).map(Number),
 
     jobDescription:
       row.job_description || "",
@@ -122,7 +123,10 @@ function mapRecruiterJob(row) {
     status:
       row.status || "draft",
 
-    applicantCount: 0,
+    applicantCount:
+      Number(
+        row.applicant_count || 0
+      ),
 
     publishedAt:
       row.published_at || null,
@@ -166,11 +170,23 @@ const jobSelectFields = `
     job.closed_at,
     job.created_at,
     job.updated_at,
-    company.company_name
+
+    company.company_name,
+
+    (
+      SELECT COUNT(*)
+
+      FROM student_job_applications
+        AS application
+
+      WHERE application.job_id =
+        job.job_id
+    ) AS applicant_count
 
   FROM recruiter_jobs AS job
 
-  LEFT JOIN recruiter_company_profiles AS company
+  LEFT JOIN recruiter_company_profiles
+    AS company
     ON company.user_id =
        job.recruiter_user_id
 `;
@@ -212,12 +228,15 @@ export async function findRecruiterJobs(
             'draft',
             'closed'
           ),
+
           job.updated_at DESC
       `,
       [userId]
     );
 
-  return rows.map(mapRecruiterJob);
+  return rows.map(
+    mapRecruiterJob
+  );
 }
 
 export async function findRecruiterJobById({
@@ -235,7 +254,10 @@ export async function findRecruiterJobById({
 
         LIMIT 1
       `,
-      [userId, jobId]
+      [
+        userId,
+        jobId,
+      ]
     );
 
   return rows[0]
@@ -299,18 +321,23 @@ export async function createRecruiterJob({
         job.openings,
         job.applicationDeadline,
         job.minimumCgpa,
+
         JSON.stringify(
           job.requiredSkills
         ),
+
         JSON.stringify(
           job.preferredSkills
         ),
+
         JSON.stringify(
           job.eligibleBranches
         ),
+
         JSON.stringify(
           job.eligibleGraduationYears
         ),
+
         job.jobDescription || null,
         job.responsibilities || null,
         job.requirements || null,
@@ -373,18 +400,23 @@ export async function updateRecruiterJob({
         job.openings,
         job.applicationDeadline,
         job.minimumCgpa,
+
         JSON.stringify(
           job.requiredSkills
         ),
+
         JSON.stringify(
           job.preferredSkills
         ),
+
         JSON.stringify(
           job.eligibleBranches
         ),
+
         JSON.stringify(
           job.eligibleGraduationYears
         ),
+
         job.jobDescription || null,
         job.responsibilities || null,
         job.requirements || null,
@@ -422,6 +454,7 @@ export async function updateRecruiterJobStatus({
                 ? = 'active'
                 AND published_at IS NULL
               THEN CURRENT_TIMESTAMP
+
               ELSE published_at
             END,
 
@@ -525,7 +558,10 @@ export async function duplicateRecruiterJob({
           job_id = ?
           AND recruiter_user_id = ?
       `,
-      [jobId, userId]
+      [
+        jobId,
+        userId,
+      ]
     );
 
   if (result.affectedRows === 0) {
@@ -552,7 +588,10 @@ export async function deleteRecruiterDraftJob({
           AND recruiter_user_id = ?
           AND status = 'draft'
       `,
-      [jobId, userId]
+      [
+        jobId,
+        userId,
+      ]
     );
 
   return result.affectedRows > 0;
