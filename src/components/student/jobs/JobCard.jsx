@@ -8,6 +8,7 @@ import {
   IndianRupee,
   LockKeyhole,
   MapPin,
+  Send,
   Sparkles,
   XCircle,
 } from "lucide-react";
@@ -77,7 +78,9 @@ function getLocation(job) {
 
 function JobCard({
   job,
+  isApplied,
   onViewDetails,
+  onApply,
 }) {
   const eligibility =
     job.eligibility || {};
@@ -185,6 +188,7 @@ function JobCard({
           <IndianRupee
             size={18}
           />
+
           {formatSalary(
             job.salaryMin,
             job.salaryMax
@@ -200,6 +204,7 @@ function JobCard({
           <BriefcaseBusiness
             size={18}
           />
+
           {job.openings} openings
         </div>
       </div>
@@ -247,19 +252,39 @@ function JobCard({
           View Details
         </button>
 
-        <button
-          type="button"
-          disabled
-          className="flex cursor-not-allowed items-center gap-2 rounded-xl bg-neutral-200 px-6 py-3 font-medium text-neutral-500"
-        >
-          <LockKeyhole size={18} />
-
-          {eligible
-            ? "Applications in Stage 8B"
-            : "Not Eligible"}
-
-          <ArrowRight size={18} />
-        </button>
+        {isApplied ? (
+          <button
+            type="button"
+            disabled
+            className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl bg-emerald-100 px-6 py-3 font-semibold text-emerald-700"
+          >
+            <CheckCircle2
+              size={18}
+            />
+            Applied
+          </button>
+        ) : eligible ? (
+          <button
+            type="button"
+            onClick={() =>
+              onApply(job)
+            }
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 font-semibold text-white transition hover:scale-[1.02] hover:shadow-lg"
+          >
+            <Send size={18} />
+            Apply Now
+            <ArrowRight size={18} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl bg-neutral-200 px-6 py-3 font-medium text-neutral-500"
+          >
+            <LockKeyhole size={18} />
+            Not Eligible
+          </button>
+        )}
       </div>
     </article>
   );

@@ -7,6 +7,7 @@ import {
 
 import {
   AlertCircle,
+  CheckCircle2,
   LoaderCircle,
 } from "lucide-react";
 
@@ -22,6 +23,7 @@ import SavedJobs from "../../components/student/jobs/SavedJobs";
 import JobGrid from "../../components/student/jobs/JobGrid";
 import JobPagination from "../../components/student/jobs/JobPagination";
 import JobDetailsModal from "../../components/student/jobs/JobDetailsModal";
+import JobApplicationModal from "../../components/student/jobs/JobApplicationModal";
 import EmptyJobs from "../../components/student/jobs/EmptyJobs";
 
 import {
@@ -32,6 +34,11 @@ import {
   getStudentJobRequest,
   getStudentJobsRequest,
 } from "../../services/studentJobService";
+
+import {
+  applyForStudentJobRequest,
+  getStudentApplicationsRequest,
+} from "../../services/studentApplicationService";
 
 const initialFilters = {
   type: "",
@@ -70,6 +77,11 @@ function Jobs() {
   });
 
   const [
+    appliedJobIds,
+    setAppliedJobIds,
+  ] = useState([]);
+
+  const [
     search,
     setSearch,
   ] = useState("");
@@ -95,8 +107,18 @@ function Jobs() {
   ] = useState(null);
 
   const [
+    applicationJob,
+    setApplicationJob,
+  ] = useState(null);
+
+  const [
     isDetailsLoading,
     setIsDetailsLoading,
+  ] = useState(false);
+
+  const [
+    isApplying,
+    setIsApplying,
   ] = useState(false);
 
   const [
@@ -107,6 +129,16 @@ function Jobs() {
   const [
     errorMessage,
     setErrorMessage,
+  ] = useState("");
+
+  const [
+    applicationError,
+    setApplicationError,
+  ] = useState("");
+
+  const [
+    successMessage,
+    setSuccessMessage,
   ] = useState("");
 
   const [
@@ -145,33 +177,62 @@ function Jobs() {
       setErrorMessage("");
 
       try {
-        const response =
-          await getStudentJobsRequest({
+        const [
+          jobsResponse,
+          applicationsResponse,
+        ] = await Promise.all([
+          getStudentJobsRequest({
             token,
-          });
+          }),
 
-        setJobs(
-          Array.isArray(response.jobs)
-            ? response.jobs
-            : []
+          getStudentApplicationsRequest({
+            token,
+          }),
+        ]);
+
+        const loadedJobs =
+          Array.isArray(
+            jobsResponse.jobs
+          )
+            ? jobsResponse.jobs
+            : [];
+
+        const applications =
+          Array.isArray(
+            applicationsResponse
+              .applications
+          )
+            ? applicationsResponse
+                .applications
+            : [];
+
+        setJobs(loadedJobs);
+
+        setAppliedJobIds(
+          applications.map(
+            (application) =>
+              String(
+                application.jobId
+              )
+          )
         );
 
         setStudent({
           department:
-            response.student
+            jobsResponse.student
               ?.department || "",
 
           cgpa:
-            response.student
+            jobsResponse.student
               ?.cgpa ?? null,
 
           graduationYear:
-            response.student
+            jobsResponse.student
               ?.graduationYear ?? null,
 
           skillCount:
             Number(
-              response.student
+              jobsResponse.student
                 ?.skillCount || 0
             ),
         });
@@ -386,6 +447,97 @@ function Jobs() {
       }
     };
 
+  const handleOpenApplication = (
+    job
+  ) => {
+    if (
+      !job.eligibility?.eligible
+    ) {
+      setErrorMessage(
+        "You are not eligible to apply for this job."
+      );
+
+      return;
+    }
+
+    if (
+      appliedJobIds.includes(
+        String(job.jobId)
+      )
+    ) {
+      setErrorMessage(
+        "You have already applied for this job."
+      );
+
+      return;
+    }
+
+    setApplicationError("");
+    setApplicationJob(job);
+  };
+
+  const handleSubmitApplication =
+    async ({
+      coverNote,
+    }) => {
+      if (!applicationJob) {
+        return;
+      }
+
+      setIsApplying(true);
+      setApplicationError("");
+      setSuccessMessage("");
+
+      try {
+        const response =
+          await applyForStudentJobRequest({
+            token,
+            jobId:
+              applicationJob.jobId,
+            coverNote,
+          });
+
+        setAppliedJobIds(
+          (previousIds) => [
+            ...new Set([
+              ...previousIds,
+              String(
+                applicationJob.jobId
+              ),
+            ]),
+          ]
+        );
+
+        setSuccessMessage(
+          response.message ||
+            "Application submitted successfully."
+        );
+
+        setApplicationJob(null);
+        setSelectedJob(null);
+
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+      } catch (error) {
+        if (
+          handleAuthenticationError(
+            error
+          )
+        ) {
+          return;
+        }
+
+        setApplicationError(
+          error.message ||
+            "Unable to submit the application."
+        );
+      } finally {
+        setIsApplying(false);
+      }
+    };
+
   if (isLoading) {
     return (
       <div className="flex min-h-[500px] flex-col items-center justify-center rounded-3xl border border-neutral-200 bg-white">
@@ -400,7 +552,7 @@ function Jobs() {
 
         <p className="mt-2 text-neutral-600">
           Checking published jobs and
-          your eligibility.
+          your applications.
         </p>
       </div>
     );
@@ -409,6 +561,33 @@ function Jobs() {
   return (
     <>
       <div className="space-y-8">
+        {successMessage && (
+          <div
+            role="status"
+            className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 font-semibold text-emerald-700"
+          >
+            <CheckCircle2
+              size={20}
+            />
+
+            <span>
+              {successMessage}
+            </span>
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  "/student/applications"
+                )
+              }
+              className="ml-auto rounded-xl bg-emerald-600 px-4 py-2 text-sm text-white"
+            >
+              View Applications
+            </button>
+          </div>
+        )}
+
         {errorMessage && (
           <div
             role="alert"
@@ -424,10 +603,12 @@ function Jobs() {
 
               <button
                 type="button"
-                onClick={loadJobs}
+                onClick={() =>
+                  setErrorMessage("")
+                }
                 className="mt-2 text-sm underline"
               >
-                Retry loading jobs
+                Dismiss
               </button>
             </div>
           </div>
@@ -496,8 +677,14 @@ function Jobs() {
           0 ? (
             <JobGrid
               jobs={paginatedJobs}
+              appliedJobIds={
+                appliedJobIds
+              }
               onViewDetails={
                 handleViewDetails
+              }
+              onApply={
+                handleOpenApplication
               }
             />
           ) : (
@@ -529,9 +716,43 @@ function Jobs() {
           isLoading={
             isDetailsLoading
           }
+          isApplied={appliedJobIds.includes(
+            String(
+              selectedJob.jobId
+            )
+          )}
+          onApply={
+            handleOpenApplication
+          }
           onClose={() =>
             setSelectedJob(null)
           }
+        />
+      )}
+
+      {applicationJob && (
+        <JobApplicationModal
+          job={applicationJob}
+          isSubmitting={
+            isApplying
+          }
+          errorMessage={
+            applicationError
+          }
+          onSubmit={
+            handleSubmitApplication
+          }
+          onClose={() => {
+            if (!isApplying) {
+              setApplicationJob(
+                null
+              );
+
+              setApplicationError(
+                ""
+              );
+            }
+          }}
         />
       )}
     </>

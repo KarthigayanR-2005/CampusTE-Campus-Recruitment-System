@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   LockKeyhole,
   MapPin,
+  Send,
   Sparkles,
   X,
   XCircle,
@@ -97,7 +98,9 @@ function formatSalary(
 function JobDetailsModal({
   job,
   onClose,
+  onApply,
   isLoading,
+  isApplied,
 }) {
   if (!job) {
     return null;
@@ -159,6 +162,7 @@ function JobDetailsModal({
               size={19}
               className="animate-spin"
             />
+
             Refreshing job details
           </div>
         )}
@@ -438,6 +442,7 @@ function JobDetailsModal({
                 className="mt-4 inline-flex items-center gap-2 font-semibold text-blue-700"
               >
                 Visit company website
+
                 <ExternalLink
                   size={16}
                 />
@@ -455,17 +460,42 @@ function JobDetailsModal({
             Close
           </button>
 
-          <button
-            type="button"
-            disabled
-            className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-neutral-200 px-6 py-3 font-semibold text-neutral-500"
-          >
-            <LockKeyhole size={18} />
+          {isApplied ? (
+            <button
+              type="button"
+              disabled
+              className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-emerald-100 px-6 py-3 font-semibold text-emerald-700"
+            >
+              <CheckCircle2
+                size={18}
+              />
 
-            {eligible
-              ? "Applications available in Stage 8B"
-              : "Not Eligible"}
-          </button>
+              Already Applied
+            </button>
+          ) : eligible ? (
+            <button
+              type="button"
+              onClick={() =>
+                onApply(job)
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 font-semibold text-white hover:shadow-lg"
+            >
+              <Send size={18} />
+              Apply Now
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-neutral-200 px-6 py-3 font-semibold text-neutral-500"
+            >
+              <LockKeyhole
+                size={18}
+              />
+
+              Not Eligible
+            </button>
+          )}
         </div>
       </div>
     </div>

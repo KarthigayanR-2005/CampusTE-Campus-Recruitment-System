@@ -47,8 +47,14 @@ const [
     default:
       studentJobRoutes,
   },
+  {
+    default:
+      studentApplicationRoutes,
+  },
 ] = await Promise.all([
-  import("./src/config/database.js"),
+  import(
+    "./src/config/database.js"
+  ),
 
   import(
     "./src/routes/authRoutes.js"
@@ -72,6 +78,10 @@ const [
 
   import(
     "./src/routes/studentJobRoutes.js"
+  ),
+
+  import(
+    "./src/routes/studentApplicationRoutes.js"
   ),
 ]);
 
@@ -170,6 +180,11 @@ app.use(
 );
 
 app.use(
+  "/api/student",
+  studentApplicationRoutes
+);
+
+app.use(
   "/api/recruiter",
   recruiterCompanyProfileRoutes
 );
@@ -182,7 +197,8 @@ app.use(
 app.use((request, response) => {
   return response.status(404).json({
     success: false,
-    message: "API route not found",
+    message:
+      "API route not found",
   });
 });
 
