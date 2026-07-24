@@ -1,47 +1,73 @@
-function ApplicationPagination() {
-    return (
-      <section className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-white px-6 py-4 shadow-sm">
-  
-        {/* Left */}
-  
-        <p className="text-sm text-neutral-500">
-          Showing
-          <span className="mx-1 font-semibold text-neutral-800">
-            1–4
-          </span>
-          of
-          <span className="mx-1 font-semibold text-neutral-800">
-            4
-          </span>
-          applications
-        </p>
-  
-        {/* Right */}
-  
-        <div className="flex items-center gap-2">
-  
-          <button
-            disabled
-            className="rounded-xl border border-neutral-200 px-4 py-2 text-sm text-neutral-400 cursor-not-allowed"
-          >
-            Previous
-          </button>
-  
-          <button className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white">
-            1
-          </button>
-  
-          <button
-            disabled
-            className="rounded-xl border border-neutral-200 px-4 py-2 text-sm text-neutral-400 cursor-not-allowed"
-          >
-            Next
-          </button>
-  
-        </div>
-  
-      </section>
+function ApplicationPagination({
+  currentPage,
+  totalPages,
+  startIndex,
+  pageSize,
+  totalItems,
+  onPageChange,
+}) {
+  const endIndex =
+    Math.min(
+      startIndex + pageSize,
+      totalItems
     );
-  }
-  
-  export default ApplicationPagination;
+
+  return (
+    <section className="flex flex-col gap-4 rounded-2xl border border-neutral-200 bg-white px-6 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-neutral-500">
+        Showing{" "}
+        <span className="font-semibold text-neutral-800">
+          {totalItems === 0
+            ? 0
+            : startIndex + 1}
+          –{endIndex}
+        </span>{" "}
+        of{" "}
+        <span className="font-semibold text-neutral-800">
+          {totalItems}
+        </span>{" "}
+        applications
+      </p>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={
+            currentPage === 1
+          }
+          onClick={() =>
+            onPageChange(
+              currentPage - 1
+            )
+          }
+          className="rounded-xl border border-neutral-200 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:text-neutral-400"
+        >
+          Previous
+        </button>
+
+        <span className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white">
+          {currentPage} of{" "}
+          {totalPages}
+        </span>
+
+        <button
+          type="button"
+          disabled={
+            currentPage ===
+            totalPages
+          }
+          onClick={() =>
+            onPageChange(
+              currentPage + 1
+            )
+          }
+          className="rounded-xl border border-neutral-200 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:text-neutral-400"
+        >
+          Next
+        </button>
+      </div>
+    </section>
+  );
+}
+
+export default ApplicationPagination;

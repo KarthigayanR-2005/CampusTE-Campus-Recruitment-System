@@ -6,15 +6,21 @@ function ApplicationsGrid({
 }) {
   return (
     <section className="grid gap-6">
-
-      {applications.map((application) => (
-        <ApplicationCard
-          key={application.id}
-          application={application}
-          onViewDetails={onViewDetails}
-        />
-      ))}
-
+      {applications.map(
+        (application) => (
+          <ApplicationCard
+            key={
+              application.applicationId
+            }
+            application={
+              application
+            }
+            onViewDetails={
+              onViewDetails
+            }
+          />
+        )
+      )}
     </section>
   );
 }
