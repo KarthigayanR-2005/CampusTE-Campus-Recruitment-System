@@ -31,7 +31,9 @@ if (environmentResult.error) {
 }
 
 const [
-  { testDatabaseConnection },
+  {
+    testDatabaseConnection,
+  },
 
   {
     default:
@@ -77,6 +79,11 @@ const [
     default:
       recruiterInterviewRoutes,
   },
+
+  {
+    default:
+      studentInterviewRoutes,
+  },
 ] = await Promise.all([
   import(
     "./src/config/database.js"
@@ -103,7 +110,7 @@ const [
   ),
 
   import(
-    "./src/routes/studentJobRoutes.js"
+    "./src/routes/studentApplicationRoutes.js"
   ),
 
   import(
@@ -117,12 +124,17 @@ const [
   import(
     "./src/routes/recruiterInterviewRoutes.js"
   ),
+
+  import(
+    "./src/routes/studentInterviewRoutes.js"
+  ),
 ]);
 
 const app = express();
 
 const PORT =
-  Number(process.env.PORT) || 5000;
+  Number(process.env.PORT) ||
+  5000;
 
 const CLIENT_URL =
   process.env.CLIENT_URL ||
@@ -130,25 +142,36 @@ const CLIENT_URL =
 
 app.use(
   cors({
-    origin: CLIENT_URL,
-    credentials: true,
+    origin:
+      CLIENT_URL,
+
+    credentials:
+      true,
   })
 );
 
-app.use(express.json());
+app.use(
+  express.json()
+);
 
-app.get("/", (request, response) => {
-  return response.status(200).json({
-    success: true,
+app.get(
+  "/",
+  (request, response) => {
+    return response.status(200).json({
+      success: true,
 
-    message:
-      "CampusTE backend server is running",
-  });
-});
+      message:
+        "CampusTE backend server is running",
+    });
+  }
+);
 
 app.get(
   "/api/health",
-  async (request, response) => {
+  async (
+    request,
+    response
+  ) => {
     try {
       const databaseStatus =
         await testDatabaseConnection();
@@ -164,14 +187,17 @@ app.get(
           connected: true,
 
           name:
-            databaseStatus.databaseName,
+            databaseStatus
+              .databaseName,
 
           serverTime:
-            databaseStatus.serverTime,
+            databaseStatus
+              .serverTime,
         },
 
         timestamp:
-          new Date().toISOString(),
+          new Date()
+            .toISOString(),
       });
     } catch (error) {
       console.error(
@@ -220,6 +246,11 @@ app.use(
 );
 
 app.use(
+  "/api/student",
+  studentInterviewRoutes
+);
+
+app.use(
   "/api/recruiter",
   recruiterCompanyProfileRoutes
 );
@@ -239,14 +270,19 @@ app.use(
   recruiterInterviewRoutes
 );
 
-app.use((request, response) => {
-  return response.status(404).json({
-    success: false,
+app.use(
+  (
+    request,
+    response
+  ) => {
+    return response.status(404).json({
+      success: false,
 
-    message:
-      "API route not found",
-  });
-});
+      message:
+        "API route not found",
+    });
+  }
+);
 
 async function startServer() {
   try {
@@ -257,11 +293,14 @@ async function startServer() {
       `MySQL connected successfully to database: ${databaseStatus.databaseName}`
     );
 
-    app.listen(PORT, () => {
-      console.log(
-        `CampusTE backend running at http://localhost:${PORT}`
-      );
-    });
+    app.listen(
+      PORT,
+      () => {
+        console.log(
+          `CampusTE backend running at http://localhost:${PORT}`
+        );
+      }
+    );
   } catch (error) {
     console.error(
       "Unable to connect to MySQL:",
