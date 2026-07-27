@@ -1,4 +1,9 @@
-import { useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+
 import {
   LayoutDashboard,
   User,
@@ -12,13 +17,22 @@ import {
   GraduationCap,
   LogOut,
 } from "lucide-react";
+
 import {
   NavLink,
   Outlet,
+  useLocation,
   useNavigate,
 } from "react-router-dom";
 
-import { useAuth } from "../context/AuthContext";
+import {
+  useAuth,
+} from "../context/AuthContext";
+
+import {
+  getUnreadNotificationCountRequest,
+  NOTIFICATIONS_CHANGED_EVENT,
+} from "../services/notificationService";
 
 const navigationItems = [
   {
@@ -63,33 +77,192 @@ const navigationItems = [
   },
 ];
 
-function StudentLayout() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
+function getInitials(name) {
+  if (!name) {
+    return "ST";
+  }
 
-  const [isSidebarOpen, setIsSidebarOpen] =
-    useState(false);
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(
+      (word) =>
+        word
+          .charAt(0)
+          .toUpperCase()
+    )
+    .join("");
+}
+
+function NotificationBadge({
+  count,
+}) {
+  if (count <= 0) {
+    return null;
+  }
+
+  return (
+    <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+      {count > 99
+        ? "99+"
+        : count}
+    </span>
+  );
+}
+
+function StudentLayout() {
+  const navigate =
+    useNavigate();
+
+  const location =
+    useLocation();
+
+  const {
+    user,
+    token,
+    logout,
+  } = useAuth();
+
+  const [
+    isSidebarOpen,
+    setIsSidebarOpen,
+  ] = useState(false);
+
+  const [
+    unreadCount,
+    setUnreadCount,
+  ] = useState(0);
+
+  const loadUnreadCount =
+    useCallback(async () => {
+      if (!token) {
+        setUnreadCount(0);
+        return;
+      }
+
+      try {
+        const response =
+          await getUnreadNotificationCountRequest({
+            token,
+          });
+
+        setUnreadCount(
+          Number(
+            response.unreadCount ||
+            0
+          )
+        );
+      } catch (error) {
+        if (
+          error.status === 401
+        ) {
+          logout();
+
+          navigate(
+            "/login",
+            {
+              replace: true,
+            }
+          );
+        }
+      }
+    }, [
+      token,
+      logout,
+      navigate,
+    ]);
+
+  useEffect(() => {
+    loadUnreadCount();
+  }, [
+    location.pathname,
+    loadUnreadCount,
+  ]);
+
+  useEffect(() => {
+    const handleNotificationChange =
+      (event) => {
+        const nextCount =
+          Number(
+            event.detail
+              ?.unreadCount
+          );
+
+        if (
+          Number.isFinite(
+            nextCount
+          )
+        ) {
+          setUnreadCount(
+            Math.max(
+              0,
+              nextCount
+            )
+          );
+
+          return;
+        }
+
+        loadUnreadCount();
+      };
+
+    window.addEventListener(
+      NOTIFICATIONS_CHANGED_EVENT,
+      handleNotificationChange
+    );
+
+    const intervalId =
+      window.setInterval(
+        loadUnreadCount,
+        30000
+      );
+
+    return () => {
+      window.removeEventListener(
+        NOTIFICATIONS_CHANGED_EVENT,
+        handleNotificationChange
+      );
+
+      window.clearInterval(
+        intervalId
+      );
+    };
+  }, [loadUnreadCount]);
 
   const closeSidebar = () => {
     setIsSidebarOpen(false);
   };
 
   const handleLogout = () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to log out?"
-    );
+    const confirmed =
+      window.confirm(
+        "Are you sure you want to log out?"
+      );
 
     if (!confirmed) {
       return;
     }
 
     logout();
-    setIsSidebarOpen(false);
+    closeSidebar();
 
-    navigate("/login", {
-      replace: true,
-    });
+    navigate(
+      "/login",
+      {
+        replace: true,
+      }
+    );
   };
+
+  const studentName =
+    user?.fullName ||
+    "Student";
+
+  const initials =
+    getInitials(
+      studentName
+    );
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -97,7 +270,9 @@ function StudentLayout() {
         <button
           type="button"
           aria-label="Close sidebar overlay"
-          onClick={closeSidebar}
+          onClick={
+            closeSidebar
+          }
           className="fixed inset-0 z-40 bg-black/40 lg:hidden"
         />
       )}
@@ -114,7 +289,10 @@ function StudentLayout() {
             type="button"
             onClick={() => {
               closeSidebar();
-              navigate("/student/dashboard");
+
+              navigate(
+                "/student/dashboard"
+              );
             }}
             className="flex items-center gap-3"
           >
@@ -135,7 +313,9 @@ function StudentLayout() {
 
           <button
             type="button"
-            onClick={closeSidebar}
+            onClick={
+              closeSidebar
+            }
             className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 lg:hidden"
             aria-label="Close sidebar"
           >
@@ -144,52 +324,81 @@ function StudentLayout() {
         </div>
 
         <nav className="flex-1 space-y-2 overflow-y-auto p-4">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
+          {navigationItems.map(
+            (item) => {
+              const Icon =
+                item.icon;
 
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                onClick={closeSidebar}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-xl px-4 py-3 font-medium transition ${
-                    isActive
-                      ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
-                      : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
-                  }`
-                }
-              >
-                <Icon size={20} />
-                <span>{item.label}</span>
-              </NavLink>
-            );
-          })}
+              return (
+                <NavLink
+                  key={
+                    item.path
+                  }
+                  to={item.path}
+                  onClick={
+                    closeSidebar
+                  }
+                  className={({
+                    isActive,
+                  }) =>
+                    `flex items-center gap-3 rounded-xl px-4 py-3 font-medium transition ${
+                      isActive
+                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
+                        : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+                    }`
+                  }
+                >
+                  <Icon
+                    size={20}
+                  />
+
+                  <span>
+                    {item.label}
+                  </span>
+
+                  {item.label ===
+                    "Notifications" && (
+                    <NotificationBadge
+                      count={
+                        unreadCount
+                      }
+                    />
+                  )}
+                </NavLink>
+              );
+            }
+          )}
         </nav>
 
         <div className="border-t border-neutral-200 p-4">
           <div className="mb-4 flex items-center gap-3 rounded-xl bg-neutral-50 p-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">
-              RK
+              {initials}
             </div>
 
             <div className="min-w-0">
               <p className="truncate font-semibold text-neutral-900">
-                Karthigayan
+                {studentName}
               </p>
 
               <p className="truncate text-xs text-neutral-500">
-                {user?.email || "Student Account"}
+                {user?.email ||
+                  "Student Account"}
               </p>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={
+              handleLogout
+            }
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-300 px-4 py-3 font-semibold text-neutral-700 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
           >
-            <LogOut size={18} />
+            <LogOut
+              size={18}
+            />
+
             Log Out
           </button>
         </div>
@@ -200,11 +409,17 @@ function StudentLayout() {
           <div className="flex items-center gap-4">
             <button
               type="button"
-              onClick={() => setIsSidebarOpen(true)}
+              onClick={() =>
+                setIsSidebarOpen(
+                  true
+                )
+              }
               className="rounded-xl border border-neutral-200 p-2.5 text-neutral-700 hover:bg-neutral-100 lg:hidden"
               aria-label="Open sidebar"
             >
-              <Menu size={22} />
+              <Menu
+                size={22}
+              />
             </button>
 
             <div>
@@ -221,14 +436,23 @@ function StudentLayout() {
           <button
             type="button"
             onClick={() =>
-              navigate("/student/notifications")
+              navigate(
+                "/student/notifications"
+              )
             }
             className="relative rounded-xl border border-neutral-200 p-3 text-neutral-600 transition hover:bg-neutral-100"
-            aria-label="Open notifications"
+            aria-label={`Open notifications. ${unreadCount} unread.`}
           >
             <Bell size={21} />
 
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
+            {unreadCount > 0 && (
+              <span className="absolute -right-2 -top-2 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+                {unreadCount >
+                99
+                  ? "99+"
+                  : unreadCount}
+              </span>
+            )}
           </button>
         </header>
 

@@ -1,5 +1,9 @@
 import databasePool from "../config/database.js";
 
+import {
+  createNotification,
+} from "./notificationModel.js";
+
 const statusInformation = {
   applied: {
     label: "Applied",
@@ -37,6 +41,163 @@ const statusInformation = {
   },
 };
 
+function buildApplicationNotification({
+  status,
+  jobTitle,
+  companyName,
+  interview,
+  note,
+}) {
+  const position =
+    jobTitle ||
+    "this position";
+
+  const company =
+    companyName ||
+    "the company";
+
+  const sharedMetadata = {
+    status,
+    jobTitle: position,
+    companyName: company,
+    note: note || "",
+  };
+
+  if (status === "under_review") {
+    return {
+      category: "application",
+
+      notificationType:
+        "application_under_review",
+
+      title:
+        "Application under review",
+
+      message:
+        `${company} is reviewing your application for ${position}.`,
+
+      actionUrl:
+        "/student/applications",
+
+      metadata:
+        sharedMetadata,
+    };
+  }
+
+  if (status === "shortlisted") {
+    return {
+      category: "application",
+
+      notificationType:
+        "application_shortlisted",
+
+      title:
+        "You have been shortlisted",
+
+      message:
+        `You have been shortlisted for ${position} at ${company}.`,
+
+      actionUrl:
+        "/student/applications",
+
+      metadata:
+        sharedMetadata,
+    };
+  }
+
+  if (status === "interview") {
+    return {
+      category: "interview",
+
+      notificationType:
+        "interview_scheduled",
+
+      title:
+        "Interview scheduled",
+
+      message:
+        `Your interview for ${position} at ${company} is scheduled for ${
+          interview?.date ||
+          "the selected date"
+        } at ${
+          interview?.time ||
+          "the selected time"
+        }.`,
+
+      actionUrl:
+        "/student/interviews",
+
+      metadata: {
+        ...sharedMetadata,
+
+        interviewDate:
+          interview?.date ||
+          "",
+
+        interviewTime:
+          interview?.time ||
+          "",
+
+        interviewMode:
+          interview?.mode ||
+          "",
+
+        interviewer:
+          interview?.interviewer ||
+          "",
+
+        interviewDetails:
+          interview?.details ||
+          "",
+      },
+    };
+  }
+
+  if (status === "selected") {
+    return {
+      category: "application",
+
+      notificationType:
+        "application_selected",
+
+      title:
+        "Congratulations! You are selected",
+
+      message:
+        `You have been selected for ${position} at ${company}.`,
+
+      actionUrl:
+        "/student/applications",
+
+      metadata:
+        sharedMetadata,
+    };
+  }
+
+  if (status === "rejected") {
+    return {
+      category: "application",
+
+      notificationType:
+        "application_rejected",
+
+      title:
+        "Application status updated",
+
+      message:
+        `Your application for ${position} at ${company} was not selected.`,
+
+      actionUrl:
+        "/student/applications",
+
+      metadata:
+        sharedMetadata,
+    };
+  }
+
+  return null;
+}
+
 function parseJsonArray(value) {
   if (Array.isArray(value)) {
     return value;
@@ -52,7 +213,9 @@ function parseJsonArray(value) {
         ? JSON.parse(value)
         : value;
 
-    return Array.isArray(parsedValue)
+    return Array.isArray(
+      parsedValue
+    )
       ? parsedValue
       : [];
   } catch {
@@ -83,7 +246,10 @@ function formatDate(value) {
       .slice(0, 10);
   }
 
-  return String(value).slice(0, 10);
+  return String(value).slice(
+    0,
+    10
+  );
 }
 
 function normalizeText(value) {
@@ -109,7 +275,9 @@ function calculateMatchInformation({
     requiredSkills.filter(
       (skill) =>
         studentSkillSet.has(
-          normalizeText(skill)
+          normalizeText(
+            skill
+          )
         )
     );
 
@@ -117,7 +285,9 @@ function calculateMatchInformation({
     requiredSkills.filter(
       (skill) =>
         !studentSkillSet.has(
-          normalizeText(skill)
+          normalizeText(
+            skill
+          )
         )
     );
 
@@ -132,31 +302,45 @@ function calculateMatchInformation({
         );
 
   const numericCgpa =
-    Number(studentCgpa);
+    Number(
+      studentCgpa
+    );
 
   const requiredCgpa =
-    Number(minimumCgpa || 0);
+    Number(
+      minimumCgpa ||
+      0
+    );
 
   const cgpaScore =
-    Number.isFinite(numericCgpa)
+    Number.isFinite(
+      numericCgpa
+    )
       ? Math.min(
           100,
+
           Math.round(
-            (numericCgpa / 10) *
-              100
+            (
+              numericCgpa /
+              10
+            ) * 100
           )
         )
       : 0;
 
   const eligibilityBonus =
-    Number.isFinite(numericCgpa) &&
-    numericCgpa >= requiredCgpa
+    Number.isFinite(
+      numericCgpa
+    ) &&
+    numericCgpa >=
+      requiredCgpa
       ? 10
       : 0;
 
   const matchScore =
     Math.min(
       100,
+
       Math.round(
         skillScore * 0.7 +
           cgpaScore * 0.2 +
@@ -169,8 +353,10 @@ function calculateMatchInformation({
     skillScore,
     matchedSkills,
     missingSkills,
+
     matchedCount:
       matchedSkills.length,
+
     requiredCount:
       requiredSkills.length,
   };
@@ -178,11 +364,12 @@ function calculateMatchInformation({
 
 function mapExperience(row) {
   return {
-    experienceId: String(
-      row.experience_id ||
-        row.id ||
-        ""
-    ),
+    experienceId:
+      String(
+        row.experience_id ||
+          row.id ||
+          ""
+      ),
 
     company:
       row.company_name ||
@@ -196,16 +383,22 @@ function mapExperience(row) {
       "",
 
     employmentType:
-      row.employment_type || "",
+      row.employment_type ||
+      "",
 
     location:
-      row.location || "",
+      row.location ||
+      "",
 
     startDate:
-      formatDate(row.start_date),
+      formatDate(
+        row.start_date
+      ),
 
     endDate:
-      formatDate(row.end_date),
+      formatDate(
+        row.end_date
+      ),
 
     isCurrent:
       Boolean(
@@ -214,7 +407,8 @@ function mapExperience(row) {
       ),
 
     description:
-      row.description || "",
+      row.description ||
+      "",
   };
 }
 
@@ -224,7 +418,9 @@ function mapStatusHistory(row) {
 
   return {
     historyId:
-      String(row.history_id),
+      String(
+        row.history_id
+      ),
 
     previousStatus:
       row.previous_status,
@@ -232,11 +428,14 @@ function mapStatusHistory(row) {
     status,
 
     statusLabel:
-      statusInformation[status]
-        ?.label || status,
+      statusInformation[
+        status
+      ]?.label ||
+      status,
 
     note:
-      row.note || "",
+      row.note ||
+      "",
 
     changedBy:
       row.changed_by_name ||
@@ -257,7 +456,8 @@ function mapApplicant(
   } = {}
 ) {
   const status =
-    row.status || "applied";
+    row.status ||
+    "applied";
 
   const skills =
     parseJsonArray(
@@ -272,8 +472,13 @@ function mapApplicant(
   const matchInformation =
     calculateMatchInformation({
       requiredSkills,
-      studentSkills: skills,
-      studentCgpa: row.cgpa,
+
+      studentSkills:
+        skills,
+
+      studentCgpa:
+        row.cgpa,
+
       minimumCgpa:
         row.minimum_cgpa,
     });
@@ -288,15 +493,25 @@ function mapApplicant(
 
   const initialHistory = [
     {
-      historyId: "initial",
-      previousStatus: null,
-      status: "applied",
-      statusLabel: "Applied",
+      historyId:
+        "initial",
+
+      previousStatus:
+        null,
+
+      status:
+        "applied",
+
+      statusLabel:
+        "Applied",
+
       note:
         "Student submitted the application.",
+
       changedBy:
         row.student_name ||
         "Student",
+
       createdAt:
         formatDateTime(
           row.applied_at
@@ -314,10 +529,14 @@ function mapApplicant(
 
   return {
     applicationId:
-      String(row.application_id),
+      String(
+        row.application_id
+      ),
 
     jobId:
-      String(row.job_id),
+      String(
+        row.job_id
+      ),
 
     studentUserId:
       String(
@@ -326,19 +545,24 @@ function mapApplicant(
 
     student: {
       fullName:
-        row.student_name || "",
+        row.student_name ||
+        "",
 
       email:
-        row.student_email || "",
+        row.student_email ||
+        "",
 
       phone:
-        row.phone || "",
+        row.phone ||
+        "",
 
       institution:
-        row.institution || "",
+        row.institution ||
+        "",
 
       degree:
-        row.degree || "",
+        row.degree ||
+        "",
 
       department:
         row.student_department ||
@@ -347,7 +571,9 @@ function mapApplicant(
       cgpa:
         row.cgpa === null
           ? null
-          : Number(row.cgpa),
+          : Number(
+              row.cgpa
+            ),
 
       graduationYear:
         row.graduation_year ===
@@ -360,16 +586,20 @@ function mapApplicant(
       location,
 
       city:
-        row.city || "",
+        row.city ||
+        "",
 
       state:
-        row.state || "",
+        row.state ||
+        "",
 
       country:
-        row.country || "",
+        row.country ||
+        "",
 
       summary:
-        row.student_summary || "",
+        row.student_summary ||
+        "",
 
       skills,
 
@@ -377,34 +607,43 @@ function mapApplicant(
 
       experienceCount:
         Number(
-          row.experience_count || 0
+          row.experience_count ||
+          0
         ),
     },
 
     job: {
       jobTitle:
-        row.job_title || "",
+        row.job_title ||
+        "",
 
       department:
-        row.job_department || "",
+        row.job_department ||
+        "",
 
       employmentType:
-        row.employment_type || "",
+        row.employment_type ||
+        "",
 
       experience:
-        row.experience_level || "",
+        row.experience_level ||
+        "",
 
       workMode:
-        row.work_mode || "",
+        row.work_mode ||
+        "",
 
       city:
-        row.job_city || "",
+        row.job_city ||
+        "",
 
       country:
-        row.job_country || "",
+        row.job_country ||
+        "",
 
       minimumCgpa:
-        row.minimum_cgpa === null
+        row.minimum_cgpa ===
+        null
           ? null
           : Number(
               row.minimum_cgpa
@@ -415,34 +654,45 @@ function mapApplicant(
 
     company: {
       companyName:
-        row.company_name || "",
+        row.company_name ||
+        "",
     },
 
     resume: {
       resumeId:
         row.resume_id
-          ? String(row.resume_id)
+          ? String(
+              row.resume_id
+            )
           : null,
 
       fileName:
-        row.resume_file_name || "",
+        row.resume_file_name ||
+        "",
 
       available:
-        Boolean(row.resume_id),
+        Boolean(
+          row.resume_id
+        ),
     },
 
     coverNote:
-      row.cover_note || "",
+      row.cover_note ||
+      "",
 
     status,
 
     statusLabel:
-      statusInformation[status]
-        ?.label || status,
+      statusInformation[
+        status
+      ]?.label ||
+      status,
 
     progress:
-      statusInformation[status]
-        ?.progress || 0,
+      statusInformation[
+        status
+      ]?.progress ||
+      0,
 
     match:
       matchInformation,
@@ -472,11 +722,15 @@ function mapApplicant(
         row.interview_time
           ? String(
               row.interview_time
-            ).slice(0, 5)
+            ).slice(
+              0,
+              5
+            )
           : "",
 
       mode:
-        row.interview_mode || "",
+        row.interview_mode ||
+        "",
 
       interviewer:
         row.interviewer_name ||
@@ -495,10 +749,13 @@ function mapApplicant(
         "selected",
         "rejected",
         "withdrawn",
-      ].includes(status),
+      ].includes(
+        status
+      ),
 
     isWithdrawn:
-      status === "withdrawn",
+      status ===
+      "withdrawn",
   };
 }
 
@@ -539,8 +796,7 @@ const applicantSelectQuery = `
     profile.state,
     profile.country,
 
-    NULL
-      AS student_summary,
+    NULL AS student_summary,
 
     job.job_title,
 
@@ -564,26 +820,30 @@ const applicantSelectQuery = `
 
     COALESCE(
       (
-        SELECT JSON_ARRAYAGG(
-          skill.skill_name
-        )
+        SELECT
+          JSON_ARRAYAGG(
+            skill.skill_name
+          )
 
         FROM student_skills
           AS skill
 
-        WHERE skill.user_id =
+        WHERE
+          skill.user_id =
           application.student_user_id
       ),
       JSON_ARRAY()
     ) AS student_skills,
 
     (
-      SELECT COUNT(*)
+      SELECT
+        COUNT(*)
 
       FROM student_experiences
         AS experience
 
-      WHERE experience.user_id =
+      WHERE
+        experience.user_id =
         application.student_user_id
     ) AS experience_count
 
@@ -630,7 +890,9 @@ export async function findRecruiterApplicants({
       "application.job_id = ?"
     );
 
-    parameters.push(jobId);
+    parameters.push(
+      jobId
+    );
   }
 
   if (status) {
@@ -638,7 +900,9 @@ export async function findRecruiterApplicants({
       "application.status = ?"
     );
 
-    parameters.push(status);
+    parameters.push(
+      status
+    );
   }
 
   if (search) {
@@ -700,14 +964,16 @@ export async function findRecruiterApplicants({
             'withdrawn'
           ),
 
-          application.applied_at
-            DESC
+          application.applied_at DESC
       `,
       parameters
     );
 
   return rows.map(
-    (row) => mapApplicant(row)
+    (row) =>
+      mapApplicant(
+        row
+      )
   );
 }
 
@@ -721,13 +987,16 @@ export async function findStudentExperiences(
 
         FROM student_experiences
 
-        WHERE user_id = ?
+        WHERE
+          user_id = ?
 
         ORDER BY
           start_date DESC,
           experience_id DESC
       `,
-      [studentUserId]
+      [
+        studentUserId,
+      ]
     );
 
   return rows.map(
@@ -754,17 +1023,21 @@ export async function findApplicationStatusHistory(
         FROM application_status_history
           AS history
 
-        LEFT JOIN users AS user
+        LEFT JOIN users
+          AS user
           ON user.user_id =
              history.changed_by_user_id
 
-        WHERE history.application_id = ?
+        WHERE
+          history.application_id = ?
 
         ORDER BY
           history.created_at ASC,
           history.history_id ASC
       `,
-      [applicationId]
+      [
+        applicationId,
+      ]
     );
 
   return rows.map(
@@ -783,6 +1056,7 @@ export async function findRecruiterApplicantById({
 
         WHERE
           job.recruiter_user_id = ?
+
           AND application.application_id = ?
 
         LIMIT 1
@@ -800,15 +1074,17 @@ export async function findRecruiterApplicantById({
   const [
     experiences,
     history,
-  ] = await Promise.all([
-    findStudentExperiences(
-      rows[0].student_user_id
-    ),
+  ] =
+    await Promise.all([
+      findStudentExperiences(
+        rows[0]
+          .student_user_id
+      ),
 
-    findApplicationStatusHistory(
-      applicationId
-    ),
-  ]);
+      findApplicationStatusHistory(
+        applicationId
+      ),
+    ]);
 
   return mapApplicant(
     rows[0],
@@ -827,16 +1103,22 @@ export async function updateRecruiterApplicantStatus({
   interview,
 }) {
   const connection =
-    await databasePool.getConnection();
+    await databasePool
+      .getConnection();
 
   try {
-    await connection.beginTransaction();
+    await connection
+      .beginTransaction();
 
     const [rows] =
       await connection.execute(
         `
           SELECT
-            application.status
+            application.status,
+            application.student_user_id,
+            application.job_id,
+            job.job_title,
+            company.company_name
 
           FROM student_job_applications
             AS application
@@ -846,8 +1128,14 @@ export async function updateRecruiterApplicantStatus({
             ON job.job_id =
                application.job_id
 
+          LEFT JOIN recruiter_company_profiles
+            AS company
+            ON company.user_id =
+               job.recruiter_user_id
+
           WHERE
             application.application_id = ?
+
             AND job.recruiter_user_id = ?
 
           LIMIT 1
@@ -861,7 +1149,9 @@ export async function updateRecruiterApplicantStatus({
       );
 
     if (!rows[0]) {
-      await connection.rollback();
+      await connection
+        .rollback();
+
       return null;
     }
 
@@ -915,26 +1205,31 @@ export async function updateRecruiterApplicantStatus({
           status_updated_at =
             CURRENT_TIMESTAMP
 
-        WHERE application_id = ?
+        WHERE
+          application_id = ?
       `,
       [
         status,
 
         status,
-        interview?.date || null,
+        interview?.date ||
+          null,
 
         status,
-        interview?.time || null,
+        interview?.time ||
+          null,
 
         status,
-        interview?.mode || null,
+        interview?.mode ||
+          null,
 
         status,
         interview?.interviewer ||
           null,
 
         status,
-        interview?.details || null,
+        interview?.details ||
+          null,
 
         recruiterUserId,
         applicationId,
@@ -957,9 +1252,73 @@ export async function updateRecruiterApplicantStatus({
         recruiterUserId,
         previousStatus,
         status,
-        note || null,
+        note ||
+          null,
       ]
     );
+
+    const notification =
+      buildApplicationNotification({
+        status,
+
+        jobTitle:
+          rows[0].job_title,
+
+        companyName:
+          rows[0].company_name,
+
+        interview,
+        note,
+      });
+
+    if (notification) {
+      await createNotification({
+        recipientUserId:
+          rows[0]
+            .student_user_id,
+
+        actorUserId:
+          recruiterUserId,
+
+        category:
+          notification.category,
+
+        notificationType:
+          notification
+            .notificationType,
+
+        title:
+          notification.title,
+
+        message:
+          notification.message,
+
+        actionUrl:
+          notification.actionUrl,
+
+        referenceType:
+          "application",
+
+        referenceId:
+          applicationId,
+
+        metadata: {
+          applicationId:
+            String(
+              applicationId
+            ),
+
+          jobId:
+            String(
+              rows[0].job_id
+            ),
+
+          ...notification.metadata,
+        },
+
+        connection,
+      });
+    }
 
     await connection.commit();
 
@@ -969,6 +1328,7 @@ export async function updateRecruiterApplicantStatus({
     });
   } catch (error) {
     await connection.rollback();
+
     throw error;
   } finally {
     connection.release();
@@ -1006,6 +1366,7 @@ export async function findRecruiterApplicantResume({
 
         WHERE
           application.application_id = ?
+
           AND job.recruiter_user_id = ?
 
         LIMIT 1
@@ -1016,5 +1377,6 @@ export async function findRecruiterApplicantResume({
       ]
     );
 
-  return rows[0] || null;
+  return rows[0] ||
+    null;
 }

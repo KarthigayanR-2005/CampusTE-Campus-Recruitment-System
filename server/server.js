@@ -30,6 +30,15 @@ if (environmentResult.error) {
   process.exit(1);
 }
 
+/*
+|--------------------------------------------------------------------------
+| Dynamic imports
+|--------------------------------------------------------------------------
+|
+| The .env file is loaded before importing database-dependent modules.
+|
+*/
+
 const [
   {
     testDatabaseConnection,
@@ -84,6 +93,11 @@ const [
     default:
       studentInterviewRoutes,
   },
+
+  {
+    default:
+      notificationRoutes,
+  },
 ] = await Promise.all([
   import(
     "./src/config/database.js"
@@ -110,7 +124,7 @@ const [
   ),
 
   import(
-    "./src/routes/studentApplicationRoutes.js"
+    "./src/routes/studentJobRoutes.js"
   ),
 
   import(
@@ -128,6 +142,10 @@ const [
   import(
     "./src/routes/studentInterviewRoutes.js"
   ),
+
+  import(
+    "./src/routes/notificationRoutes.js"
+  ),
 ]);
 
 const app = express();
@@ -139,6 +157,12 @@ const PORT =
 const CLIENT_URL =
   process.env.CLIENT_URL ||
   "http://localhost:5173";
+
+/*
+|--------------------------------------------------------------------------
+| Global middleware
+|--------------------------------------------------------------------------
+*/
 
 app.use(
   cors({
@@ -154,17 +178,34 @@ app.use(
   express.json()
 );
 
+/*
+|--------------------------------------------------------------------------
+| Root route
+|--------------------------------------------------------------------------
+*/
+
 app.get(
   "/",
-  (request, response) => {
-    return response.status(200).json({
-      success: true,
+  (
+    request,
+    response
+  ) => {
+    return response
+      .status(200)
+      .json({
+        success: true,
 
-      message:
-        "CampusTE backend server is running",
-    });
+        message:
+          "CampusTE backend server is running",
+      });
   }
 );
+
+/*
+|--------------------------------------------------------------------------
+| Health-check route
+|--------------------------------------------------------------------------
+*/
 
 app.get(
   "/api/health",
@@ -176,59 +217,81 @@ app.get(
       const databaseStatus =
         await testDatabaseConnection();
 
-      return response.status(200).json({
-        success: true,
-        status: "healthy",
+      return response
+        .status(200)
+        .json({
+          success: true,
+          status: "healthy",
 
-        message:
-          "CampusTE API and database are working",
+          message:
+            "CampusTE API and database are working",
 
-        database: {
-          connected: true,
+          database: {
+            connected: true,
 
-          name:
-            databaseStatus
-              .databaseName,
+            name:
+              databaseStatus
+                .databaseName,
 
-          serverTime:
-            databaseStatus
-              .serverTime,
-        },
+            serverTime:
+              databaseStatus
+                .serverTime,
+          },
 
-        timestamp:
-          new Date()
-            .toISOString(),
-      });
+          timestamp:
+            new Date()
+              .toISOString(),
+        });
     } catch (error) {
       console.error(
         "Database health check failed:",
         error.message
       );
 
-      return response.status(503).json({
-        success: false,
-        status: "unhealthy",
+      return response
+        .status(503)
+        .json({
+          success: false,
+          status: "unhealthy",
 
-        message:
-          "Database connection failed",
+          message:
+            "Database connection failed",
 
-        database: {
-          connected: false,
-        },
-      });
+          database: {
+            connected: false,
+          },
+        });
     }
   }
 );
+
+/*
+|--------------------------------------------------------------------------
+| Authentication routes
+|--------------------------------------------------------------------------
+*/
 
 app.use(
   "/api/auth",
   authRoutes
 );
 
+/*
+|--------------------------------------------------------------------------
+| Admin routes
+|--------------------------------------------------------------------------
+*/
+
 app.use(
   "/api/admin",
   adminRoutes
 );
+
+/*
+|--------------------------------------------------------------------------
+| Student routes
+|--------------------------------------------------------------------------
+*/
 
 app.use(
   "/api/student",
@@ -250,6 +313,12 @@ app.use(
   studentInterviewRoutes
 );
 
+/*
+|--------------------------------------------------------------------------
+| Recruiter routes
+|--------------------------------------------------------------------------
+*/
+
 app.use(
   "/api/recruiter",
   recruiterCompanyProfileRoutes
@@ -270,19 +339,53 @@ app.use(
   recruiterInterviewRoutes
 );
 
+/*
+|--------------------------------------------------------------------------
+| Shared notification routes
+|--------------------------------------------------------------------------
+|
+| Available to every authenticated role:
+|
+| GET    /api/notifications
+| GET    /api/notifications/:notificationId
+| PATCH  /api/notifications/:notificationId/read
+| PATCH  /api/notifications/read-all
+| DELETE /api/notifications/:notificationId
+|
+*/
+
+app.use(
+  "/api",
+  notificationRoutes
+);
+
+/*
+|--------------------------------------------------------------------------
+| 404 handler
+|--------------------------------------------------------------------------
+*/
+
 app.use(
   (
     request,
     response
   ) => {
-    return response.status(404).json({
-      success: false,
+    return response
+      .status(404)
+      .json({
+        success: false,
 
-      message:
-        "API route not found",
-    });
+        message:
+          "API route not found",
+      });
   }
 );
+
+/*
+|--------------------------------------------------------------------------
+| Start server
+|--------------------------------------------------------------------------
+*/
 
 async function startServer() {
   try {

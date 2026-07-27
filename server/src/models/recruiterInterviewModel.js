@@ -1,15 +1,33 @@
 import databasePool from "../config/database.js";
 
+import {
+  createNotification,
+} from "./notificationModel.js";
+
+function getInterviewNotificationContext(
+  row
+) {
+  return {
+    position:
+      row.job_title ||
+      "this position",
+
+    company:
+      row.company_name ||
+      "the company",
+  };
+}
+
 function formatDate(value) {
   if (!value) {
     return "";
   }
 
-  if (value instanceof Date) {
-    return value.toISOString().slice(0, 10);
-  }
-
-  return String(value).slice(0, 10);
+  return value instanceof Date
+    ? value
+        .toISOString()
+        .slice(0, 10)
+    : String(value).slice(0, 10);
 }
 
 function formatDateTime(value) {
@@ -17,11 +35,9 @@ function formatDateTime(value) {
     return null;
   }
 
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  return String(value);
+  return value instanceof Date
+    ? value.toISOString()
+    : String(value);
 }
 
 function mapInterview(row) {
@@ -35,7 +51,10 @@ function mapInterview(row) {
 
   const jobLocation =
     row.work_mode === "Remote"
-      ? `Remote · ${row.job_country || ""}`
+      ? `Remote · ${
+          row.job_country ||
+          ""
+        }`
       : [
           row.job_city,
           row.job_country,
@@ -44,28 +63,36 @@ function mapInterview(row) {
           .join(", ");
 
   return {
-    applicationId: String(
-      row.application_id
-    ),
+    applicationId:
+      String(
+        row.application_id
+      ),
 
-    jobId: String(row.job_id),
+    jobId:
+      String(
+        row.job_id
+      ),
 
-    studentUserId: String(
-      row.student_user_id
-    ),
+    studentUserId:
+      String(
+        row.student_user_id
+      ),
 
     student: {
       fullName:
-        row.student_name || "",
+        row.student_name ||
+        "",
 
       email:
-        row.student_email || "",
+        row.student_email ||
+        "",
 
       phone:
         row.phone || "",
 
       institution:
-        row.institution || "",
+        row.institution ||
+        "",
 
       department:
         row.student_department ||
@@ -74,7 +101,9 @@ function mapInterview(row) {
       cgpa:
         row.cgpa === null
           ? null
-          : Number(row.cgpa),
+          : Number(
+              row.cgpa
+            ),
 
       graduationYear:
         row.graduation_year ===
@@ -84,50 +113,62 @@ function mapInterview(row) {
               row.graduation_year
             ),
 
-      location: studentLocation,
+      location:
+        studentLocation,
     },
 
     job: {
       jobTitle:
-        row.job_title || "",
+        row.job_title ||
+        "",
 
       department:
-        row.job_department || "",
+        row.job_department ||
+        "",
 
       employmentType:
-        row.employment_type || "",
+        row.employment_type ||
+        "",
 
       workMode:
-        row.work_mode || "",
+        row.work_mode ||
+        "",
 
-      location: jobLocation,
+      location:
+        jobLocation,
     },
 
     company: {
       companyName:
-        row.company_name || "",
+        row.company_name ||
+        "",
     },
 
     resume: {
       resumeId:
         row.resume_id
-          ? String(row.resume_id)
+          ? String(
+              row.resume_id
+            )
           : null,
 
       fileName:
-        row.resume_file_name || "",
+        row.resume_file_name ||
+        "",
     },
 
     coverNote:
-      row.cover_note || "",
+      row.cover_note ||
+      "",
 
     applicationStatus:
       row.status || "",
 
     interview: {
-      date: formatDate(
-        row.interview_date
-      ),
+      date:
+        formatDate(
+          row.interview_date
+        ),
 
       time:
         row.interview_time
@@ -137,7 +178,8 @@ function mapInterview(row) {
           : "",
 
       mode:
-        row.interview_mode || "",
+        row.interview_mode ||
+        "",
 
       interviewer:
         row.interviewer_name ||
@@ -248,7 +290,9 @@ export async function findRecruiterInterviews({
 }) {
   const conditions = [
     "job.recruiter_user_id = ?",
+
     "application.status = 'interview'",
+
     "application.interview_date IS NOT NULL",
   ];
 
@@ -261,7 +305,9 @@ export async function findRecruiterInterviews({
       "application.job_id = ?"
     );
 
-    parameters.push(jobId);
+    parameters.push(
+      jobId
+    );
   }
 
   if (search) {
@@ -321,8 +367,11 @@ export async function findRecruiterInterviewById({
 
         WHERE
           job.recruiter_user_id = ?
+
           AND application.application_id = ?
+
           AND application.status = 'interview'
+
           AND application.interview_date IS NOT NULL
 
         LIMIT 1
@@ -334,7 +383,9 @@ export async function findRecruiterInterviewById({
     );
 
   return rows[0]
-    ? mapInterview(rows[0])
+    ? mapInterview(
+        rows[0]
+      )
     : null;
 }
 
@@ -348,16 +399,22 @@ export async function rescheduleRecruiterInterview({
   interviewDetails,
 }) {
   const connection =
-    await databasePool.getConnection();
+    await databasePool
+      .getConnection();
 
   try {
-    await connection.beginTransaction();
+    await connection
+      .beginTransaction();
 
     const [rows] =
       await connection.execute(
         `
           SELECT
-            application.status
+            application.status,
+            application.student_user_id,
+            application.job_id,
+            job.job_title,
+            company.company_name
 
           FROM student_job_applications
             AS application
@@ -367,8 +424,14 @@ export async function rescheduleRecruiterInterview({
             ON job.job_id =
                application.job_id
 
+          LEFT JOIN recruiter_company_profiles
+            AS company
+            ON company.user_id =
+               job.recruiter_user_id
+
           WHERE
             application.application_id = ?
+
             AND job.recruiter_user_id = ?
 
           LIMIT 1
@@ -382,10 +445,12 @@ export async function rescheduleRecruiterInterview({
       );
 
     if (!rows[0]) {
-      await connection.rollback();
+      await connection
+        .rollback();
 
       return {
-        result: "not_found",
+        result:
+          "not_found",
       };
     }
 
@@ -393,10 +458,12 @@ export async function rescheduleRecruiterInterview({
       rows[0].status !==
       "interview"
     ) {
-      await connection.rollback();
+      await connection
+        .rollback();
 
       return {
-        result: "invalid_status",
+        result:
+          "invalid_status",
       };
     }
 
@@ -414,14 +481,18 @@ export async function rescheduleRecruiterInterview({
           status_updated_at =
             CURRENT_TIMESTAMP
 
-        WHERE application_id = ?
+        WHERE
+          application_id = ?
       `,
       [
         interviewDate,
         interviewTime,
         interviewMode,
         interviewerName,
-        interviewDetails || null,
+
+        interviewDetails ||
+          null,
+
         recruiterUserId,
         applicationId,
       ]
@@ -443,9 +514,77 @@ export async function rescheduleRecruiterInterview({
         recruiterUserId,
         "interview",
         "interview",
+
         `Interview rescheduled to ${interviewDate} at ${interviewTime}.`,
       ]
     );
+
+    const {
+      position,
+      company,
+    } =
+      getInterviewNotificationContext(
+        rows[0]
+      );
+
+    await createNotification({
+      recipientUserId:
+        rows[0]
+          .student_user_id,
+
+      actorUserId:
+        recruiterUserId,
+
+      category:
+        "interview",
+
+      notificationType:
+        "interview_rescheduled",
+
+      title:
+        "Interview rescheduled",
+
+      message:
+        `Your interview for ${position} at ${company} has been rescheduled to ${interviewDate} at ${interviewTime}.`,
+
+      actionUrl:
+        "/student/interviews",
+
+      referenceType:
+        "application",
+
+      referenceId:
+        applicationId,
+
+      metadata: {
+        applicationId:
+          String(
+            applicationId
+          ),
+
+        jobId:
+          String(
+            rows[0].job_id
+          ),
+
+        jobTitle:
+          position,
+
+        companyName:
+          company,
+
+        interviewDate,
+        interviewTime,
+        interviewMode,
+        interviewerName,
+
+        interviewDetails:
+          interviewDetails ||
+          "",
+      },
+
+      connection,
+    });
 
     await connection.commit();
 
@@ -456,11 +595,14 @@ export async function rescheduleRecruiterInterview({
       });
 
     return {
-      result: "success",
+      result:
+        "success",
+
       interview,
     };
   } catch (error) {
     await connection.rollback();
+
     throw error;
   } finally {
     connection.release();
@@ -473,18 +615,26 @@ export async function cancelRecruiterInterview({
   cancellationReason,
 }) {
   const connection =
-    await databasePool.getConnection();
+    await databasePool
+      .getConnection();
 
   try {
-    await connection.beginTransaction();
+    await connection
+      .beginTransaction();
 
     const [rows] =
       await connection.execute(
         `
           SELECT
             application.status,
+            application.student_user_id,
+            application.job_id,
             application.interview_date,
-            application.interview_time
+            application.interview_time,
+            application.interview_mode,
+            application.interviewer_name,
+            job.job_title,
+            company.company_name
 
           FROM student_job_applications
             AS application
@@ -494,8 +644,14 @@ export async function cancelRecruiterInterview({
             ON job.job_id =
                application.job_id
 
+          LEFT JOIN recruiter_company_profiles
+            AS company
+            ON company.user_id =
+               job.recruiter_user_id
+
           WHERE
             application.application_id = ?
+
             AND job.recruiter_user_id = ?
 
           LIMIT 1
@@ -509,10 +665,12 @@ export async function cancelRecruiterInterview({
       );
 
     if (!rows[0]) {
-      await connection.rollback();
+      await connection
+        .rollback();
 
       return {
-        result: "not_found",
+        result:
+          "not_found",
       };
     }
 
@@ -520,10 +678,12 @@ export async function cancelRecruiterInterview({
       rows[0].status !==
       "interview"
     ) {
-      await connection.rollback();
+      await connection
+        .rollback();
 
       return {
-        result: "invalid_status",
+        result:
+          "invalid_status",
       };
     }
 
@@ -542,7 +702,8 @@ export async function cancelRecruiterInterview({
           status_updated_at =
             CURRENT_TIMESTAMP
 
-        WHERE application_id = ?
+        WHERE
+          application_id = ?
       `,
       [
         recruiterUserId,
@@ -566,17 +727,105 @@ export async function cancelRecruiterInterview({
         recruiterUserId,
         "interview",
         "shortlisted",
+
         `Interview cancelled. Reason: ${cancellationReason}`,
       ]
     );
 
+    const {
+      position,
+      company,
+    } =
+      getInterviewNotificationContext(
+        rows[0]
+      );
+
+    await createNotification({
+      recipientUserId:
+        rows[0]
+          .student_user_id,
+
+      actorUserId:
+        recruiterUserId,
+
+      category:
+        "interview",
+
+      notificationType:
+        "interview_cancelled",
+
+      title:
+        "Interview cancelled",
+
+      message:
+        `Your interview for ${position} at ${company} has been cancelled. Reason: ${cancellationReason}`,
+
+      actionUrl:
+        "/student/applications",
+
+      referenceType:
+        "application",
+
+      referenceId:
+        applicationId,
+
+      metadata: {
+        applicationId:
+          String(
+            applicationId
+          ),
+
+        jobId:
+          String(
+            rows[0].job_id
+          ),
+
+        jobTitle:
+          position,
+
+        companyName:
+          company,
+
+        cancellationReason,
+
+        previousInterviewDate:
+          formatDate(
+            rows[0]
+              .interview_date
+          ),
+
+        previousInterviewTime:
+          rows[0]
+            .interview_time
+            ? String(
+                rows[0]
+                  .interview_time
+              ).slice(0, 5)
+            : "",
+
+        previousInterviewMode:
+          rows[0]
+            .interview_mode ||
+          "",
+
+        previousInterviewer:
+          rows[0]
+            .interviewer_name ||
+          "",
+      },
+
+      connection,
+    });
+
     await connection.commit();
 
     return {
-      result: "success",
+      result:
+        "success",
     };
   } catch (error) {
     await connection.rollback();
+
     throw error;
   } finally {
     connection.release();
