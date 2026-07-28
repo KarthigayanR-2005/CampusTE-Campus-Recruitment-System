@@ -181,7 +181,9 @@ function mapCandidate(row) {
       row.cgpa === null ||
       row.cgpa === undefined
         ? null
-        : Number(row.cgpa),
+        : Number(
+            row.cgpa
+          ),
 
     graduationYear:
       row.graduation_year ===
@@ -416,42 +418,45 @@ const candidateSelectQuery = `
 
         WHERE
           skill.user_id =
-          student.user_id
+            student.user_id
       ),
       JSON_ARRAY()
     ) AS student_skills,
 
     (
-      SELECT COUNT(*)
+      SELECT
+        COUNT(*)
 
       FROM student_experiences
         AS experience
 
       WHERE
         experience.user_id =
-        student.user_id
+          student.user_id
     ) AS experience_count,
 
     (
-      SELECT COUNT(*)
+      SELECT
+        COUNT(*)
 
       FROM student_projects
         AS project
 
       WHERE
         project.user_id =
-        student.user_id
+          student.user_id
     ) AS project_count,
 
     (
-      SELECT COUNT(*)
+      SELECT
+        COUNT(*)
 
       FROM student_certifications
         AS certification
 
       WHERE
         certification.user_id =
-        student.user_id
+          student.user_id
     ) AS certification_count,
 
     (
@@ -463,7 +468,7 @@ const candidateSelectQuery = `
 
       WHERE
         resume.user_id =
-        student.user_id
+          student.user_id
 
       ORDER BY
         resume.updated_at DESC,
@@ -481,7 +486,7 @@ const candidateSelectQuery = `
 
       WHERE
         resume.user_id =
-        student.user_id
+          student.user_id
 
       ORDER BY
         resume.updated_at DESC,
@@ -491,7 +496,8 @@ const candidateSelectQuery = `
     ) AS latest_resume_name,
 
     EXISTS (
-      SELECT 1
+      SELECT
+        1
 
       FROM recruiter_saved_candidates
         AS saved
@@ -540,8 +546,10 @@ export async function findRecruiterCandidates({
         OR profile.institution LIKE ?
         OR profile.degree LIKE ?
         OR profile.department LIKE ?
+
         OR EXISTS (
-          SELECT 1
+          SELECT
+            1
 
           FROM student_skills
             AS searched_skill
@@ -579,7 +587,8 @@ export async function findRecruiterCandidates({
   if (skill) {
     conditions.push(`
       EXISTS (
-        SELECT 1
+        SELECT
+          1
 
         FROM student_skills
           AS filtered_skill
@@ -599,14 +608,18 @@ export async function findRecruiterCandidates({
   }
 
   if (
-    Number(minimumCgpa) > 0
+    Number(
+      minimumCgpa
+    ) > 0
   ) {
     conditions.push(
       "profile.cgpa >= ?"
     );
 
     parameters.push(
-      Number(minimumCgpa)
+      Number(
+        minimumCgpa
+      )
     );
   }
 
@@ -642,9 +655,14 @@ export async function findRecruiterCandidates({
     );
 
   return rows
-    .map(mapCandidate)
+    .map(
+      mapCandidate
+    )
     .sort(
-      (first, second) =>
+      (
+        first,
+        second
+      ) =>
         second.profileScore -
         first.profileScore
     );
@@ -685,12 +703,15 @@ export async function findRecruiterCandidateById({
 
         FROM student_skills
 
-        WHERE user_id = ?
+        WHERE
+          user_id = ?
 
         ORDER BY
           skill_name ASC
       `,
-      [studentUserId]
+      [
+        studentUserId,
+      ]
     ),
 
     databasePool.execute(
@@ -699,13 +720,16 @@ export async function findRecruiterCandidateById({
 
         FROM student_experiences
 
-        WHERE user_id = ?
+        WHERE
+          user_id = ?
 
         ORDER BY
           start_date DESC,
           experience_id DESC
       `,
-      [studentUserId]
+      [
+        studentUserId,
+      ]
     ),
 
     databasePool.execute(
@@ -714,12 +738,15 @@ export async function findRecruiterCandidateById({
 
         FROM student_projects
 
-        WHERE user_id = ?
+        WHERE
+          user_id = ?
 
         ORDER BY
           project_id DESC
       `,
-      [studentUserId]
+      [
+        studentUserId,
+      ]
     ),
 
     databasePool.execute(
@@ -728,28 +755,35 @@ export async function findRecruiterCandidateById({
 
         FROM student_certifications
 
-        WHERE user_id = ?
+        WHERE
+          user_id = ?
 
         ORDER BY
           certification_id DESC
       `,
-      [studentUserId]
+      [
+        studentUserId,
+      ]
     ),
   ]);
 
   const candidate =
-    mapCandidate(rows[0]);
+    mapCandidate(
+      rows[0]
+    );
 
   return {
     ...candidate,
 
     skills:
-      skillRows[0].map(
-        (row) =>
-          row.skill_name ||
-          row.name ||
-          ""
-      ).filter(Boolean),
+      skillRows[0]
+        .map(
+          (row) =>
+            row.skill_name ||
+            row.name ||
+            ""
+        )
+        .filter(Boolean),
 
     experiences:
       experienceRows[0].map(
@@ -775,17 +809,21 @@ export async function saveRecruiterCandidate({
   const [studentRows] =
     await databasePool.execute(
       `
-        SELECT user_id
+        SELECT
+          user_id
 
         FROM users
 
         WHERE
           user_id = ?
+
           AND role = 'student'
 
         LIMIT 1
       `,
-      [studentUserId]
+      [
+        studentUserId,
+      ]
     );
 
   if (!studentRows[0]) {
@@ -823,6 +861,7 @@ export async function removeRecruiterSavedCandidate({
 
         WHERE
           recruiter_user_id = ?
+
           AND student_user_id = ?
       `,
       [
@@ -836,6 +875,12 @@ export async function removeRecruiterSavedCandidate({
   );
 }
 
+/*
+|--------------------------------------------------------------------------
+| Recruiter published/active job options
+|--------------------------------------------------------------------------
+*/
+
 export async function findRecruiterCandidateJobOptions(
   recruiterUserId
 ) {
@@ -848,31 +893,57 @@ export async function findRecruiterCandidateJobOptions(
           department,
           city,
           country,
-          work_mode
+          work_mode,
+          status,
+          application_deadline
 
         FROM recruiter_jobs
 
         WHERE
           recruiter_user_id = ?
-          AND status = 'published'
+
+          AND status IN (
+            'active',
+            'published'
+          )
+
+          AND application_deadline
+            IS NOT NULL
+
+          AND application_deadline
+            >= CURRENT_DATE
 
         ORDER BY
           created_at DESC,
           job_id DESC
       `,
-      [recruiterUserId]
+      [
+        recruiterUserId,
+      ]
     );
 
   return rows.map(
     (row) => ({
       jobId:
-        String(row.job_id),
+        String(
+          row.job_id
+        ),
 
       jobTitle:
         row.job_title || "",
 
       department:
         row.department || "",
+
+      status:
+        row.status || "",
+
+      applicationDeadline:
+        row.application_deadline
+          ? formatDate(
+              row.application_deadline
+            )
+          : "",
 
       location:
         row.work_mode ===
@@ -889,6 +960,12 @@ export async function findRecruiterCandidateJobOptions(
     })
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| Invite candidate
+|--------------------------------------------------------------------------
+*/
 
 export async function inviteRecruiterCandidate({
   recruiterUserId,
@@ -919,6 +996,8 @@ export async function inviteRecruiterCandidate({
 
             job.job_id,
             job.job_title,
+            job.status,
+            job.application_deadline,
 
             company.company_name
 
@@ -936,10 +1015,22 @@ export async function inviteRecruiterCandidate({
 
           WHERE
             student.user_id = ?
-            AND student.role = 'student'
+
+            AND student.role =
+              'student'
 
             AND job.recruiter_user_id = ?
-            AND job.status = 'published'
+
+            AND job.status IN (
+              'active',
+              'published'
+            )
+
+            AND job.application_deadline
+              IS NOT NULL
+
+            AND job.application_deadline
+              >= CURRENT_DATE
 
           LIMIT 1
         `,
@@ -951,7 +1042,8 @@ export async function inviteRecruiterCandidate({
       );
 
     if (!rows[0]) {
-      await connection.rollback();
+      await connection
+        .rollback();
 
       return null;
     }
@@ -974,12 +1066,14 @@ export async function inviteRecruiterCandidate({
           message =
             VALUES(message),
 
-          status = 'sent',
+          status =
+            'sent',
 
           invited_at =
             CURRENT_TIMESTAMP,
 
-          responded_at = NULL
+          responded_at =
+            NULL
       `,
       [
         recruiterUserId,
@@ -1023,7 +1117,9 @@ export async function inviteRecruiterCandidate({
 
       metadata: {
         jobId:
-          String(jobId),
+          String(
+            jobId
+          ),
 
         jobTitle:
           context.job_title,
@@ -1032,6 +1128,11 @@ export async function inviteRecruiterCandidate({
 
         recruiterMessage:
           message || "",
+
+        applicationDeadline:
+          formatDate(
+            context.application_deadline
+          ),
       },
 
       connection,
@@ -1041,7 +1142,9 @@ export async function inviteRecruiterCandidate({
 
     return {
       studentUserId:
-        String(studentUserId),
+        String(
+          studentUserId
+        ),
 
       studentName:
         context.student_name,
@@ -1050,7 +1153,9 @@ export async function inviteRecruiterCandidate({
         context.student_email,
 
       jobId:
-        String(jobId),
+        String(
+          jobId
+        ),
 
       jobTitle:
         context.job_title,
@@ -1062,6 +1167,11 @@ export async function inviteRecruiterCandidate({
 
       status:
         "sent",
+
+      applicationDeadline:
+        formatDate(
+          context.application_deadline
+        ),
     };
   } catch (error) {
     await connection.rollback();
@@ -1091,7 +1201,9 @@ export async function findRecruiterCandidateResume(
 
         LIMIT 1
       `,
-      [studentUserId]
+      [
+        studentUserId,
+      ]
     );
 
   return rows[0] || null;

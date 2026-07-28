@@ -7,8 +7,16 @@ import {
 
 import {
   AlertCircle,
+  BriefcaseBusiness,
+  Building2,
+  CalendarDays,
   CheckCircle2,
+  Clock3,
   LoaderCircle,
+  MapPin,
+  MessageSquare,
+  UserCheck,
+  XCircle,
 } from "lucide-react";
 
 import {
@@ -40,11 +48,27 @@ import {
   getStudentApplicationsRequest,
 } from "../../services/studentApplicationService";
 
+import {
+  getStudentJobInvitationsRequest,
+  respondToStudentJobInvitationRequest,
+} from "../../services/studentInvitationService";
+
 const initialFilters = {
   type: "",
   mode: "",
   experience: "",
   eligibility: "",
+};
+
+const invitationStatusStyles = {
+  sent:
+    "border-amber-200 bg-amber-50 text-amber-700",
+
+  accepted:
+    "border-emerald-200 bg-emerald-50 text-emerald-700",
+
+  declined:
+    "border-rose-200 bg-rose-50 text-rose-700",
 };
 
 function normalizeText(value) {
@@ -53,8 +77,52 @@ function normalizeText(value) {
     .toLowerCase();
 }
 
+function formatDateTime(value) {
+  if (!value) {
+    return "Recently";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return String(value);
+  }
+
+  return date.toLocaleString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }
+  );
+}
+
+function getInvitationStatusLabel(
+  status
+) {
+  if (status === "accepted") {
+    return "Accepted";
+  }
+
+  if (status === "declined") {
+    return "Declined";
+  }
+
+  return "Pending Response";
+}
+
 function Jobs() {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   const {
     token,
@@ -64,6 +132,11 @@ function Jobs() {
   const [
     jobs,
     setJobs,
+  ] = useState([]);
+
+  const [
+    invitations,
+    setInvitations,
   ] = useState([]);
 
   const [
@@ -99,7 +172,9 @@ function Jobs() {
   const [
     filters,
     setFilters,
-  ] = useState(initialFilters);
+  ] = useState(
+    initialFilters
+  );
 
   const [
     selectedJob,
@@ -109,6 +184,11 @@ function Jobs() {
   const [
     applicationJob,
     setApplicationJob,
+  ] = useState(null);
+
+  const [
+    activeInvitationId,
+    setActiveInvitationId,
   ] = useState(null);
 
   const [
@@ -151,19 +231,27 @@ function Jobs() {
   const handleAuthenticationError =
     useCallback(
       (error) => {
-        if (error.status === 401) {
+        if (
+          error.status === 401
+        ) {
           logout();
 
-          navigate("/login", {
-            replace: true,
-          });
+          navigate(
+            "/login",
+            {
+              replace: true,
+            }
+          );
 
           return true;
         }
 
         return false;
       },
-      [logout, navigate]
+      [
+        logout,
+        navigate,
+      ]
     );
 
   const loadJobs =
@@ -180,15 +268,21 @@ function Jobs() {
         const [
           jobsResponse,
           applicationsResponse,
-        ] = await Promise.all([
-          getStudentJobsRequest({
-            token,
-          }),
+          invitationsResponse,
+        ] =
+          await Promise.all([
+            getStudentJobsRequest({
+              token,
+            }),
 
-          getStudentApplicationsRequest({
-            token,
-          }),
-        ]);
+            getStudentApplicationsRequest({
+              token,
+            }),
+
+            getStudentJobInvitationsRequest({
+              token,
+            }),
+          ]);
 
         const loadedJobs =
           Array.isArray(
@@ -206,7 +300,22 @@ function Jobs() {
                 .applications
             : [];
 
-        setJobs(loadedJobs);
+        const loadedInvitations =
+          Array.isArray(
+            invitationsResponse
+              .invitations
+          )
+            ? invitationsResponse
+                .invitations
+            : [];
+
+        setJobs(
+          loadedJobs
+        );
+
+        setInvitations(
+          loadedInvitations
+        );
 
         setAppliedJobIds(
           applications.map(
@@ -228,7 +337,8 @@ function Jobs() {
 
           graduationYear:
             jobsResponse.student
-              ?.graduationYear ?? null,
+              ?.graduationYear ??
+            null,
 
           skillCount:
             Number(
@@ -247,7 +357,7 @@ function Jobs() {
 
         setErrorMessage(
           error.message ||
-            "Unable to retrieve published jobs."
+            "Unable to retrieve jobs and invitations."
         );
       } finally {
         setIsLoading(false);
@@ -276,81 +386,87 @@ function Jobs() {
           companySearch
         );
 
-      return jobs.filter((job) => {
-        const searchableValues = [
-          job.jobTitle,
-          job.department,
-          job.jobDescription,
-          job.company?.companyName,
-          ...(job.requiredSkills || []),
-          ...(job.preferredSkills || []),
-        ]
-          .map(normalizeText)
-          .join(" ");
-
-        const locationValue =
-          normalizeText(
-            [
-              job.city,
-              job.country,
-              job.workMode,
-            ].join(" ")
-          );
-
-        const companyValue =
-          normalizeText(
+      return jobs.filter(
+        (job) => {
+          const searchableValues = [
+            job.jobTitle,
+            job.department,
+            job.jobDescription,
             job.company
-              ?.companyName
+              ?.companyName,
+            ...(job.requiredSkills ||
+              []),
+            ...(job.preferredSkills ||
+              []),
+          ]
+            .map(normalizeText)
+            .join(" ");
+
+          const locationValue =
+            normalizeText(
+              [
+                job.city,
+                job.country,
+                job.workMode,
+              ].join(" ")
+            );
+
+          const companyValue =
+            normalizeText(
+              job.company
+                ?.companyName
+            );
+
+          const matchesSearch =
+            !cleanedSearch ||
+            searchableValues.includes(
+              cleanedSearch
+            );
+
+          const matchesLocation =
+            !cleanedLocation ||
+            locationValue.includes(
+              cleanedLocation
+            );
+
+          const matchesCompany =
+            !cleanedCompany ||
+            companyValue.includes(
+              cleanedCompany
+            );
+
+          const matchesType =
+            !filters.type ||
+            job.employmentType ===
+              filters.type;
+
+          const matchesMode =
+            !filters.mode ||
+            job.workMode ===
+              filters.mode;
+
+          const matchesExperience =
+            !filters.experience ||
+            job.experience ===
+              filters.experience;
+
+          const matchesEligibility =
+            !filters.eligibility ||
+            job.eligibility
+              ?.status ===
+              filters.eligibility;
+
+          return (
+            matchesSearch &&
+            matchesLocation &&
+            matchesCompany &&
+            matchesType &&
+            matchesMode &&
+            matchesExperience &&
+            matchesEligibility
           );
-
-        const matchesSearch =
-          !cleanedSearch ||
-          searchableValues.includes(
-            cleanedSearch
-          );
-
-        const matchesLocation =
-          !cleanedLocation ||
-          locationValue.includes(
-            cleanedLocation
-          );
-
-        const matchesCompany =
-          !cleanedCompany ||
-          companyValue.includes(
-            cleanedCompany
-          );
-
-        const matchesType =
-          !filters.type ||
-          job.employmentType ===
-            filters.type;
-
-        const matchesMode =
-          !filters.mode ||
-          job.workMode ===
-            filters.mode;
-
-        const matchesExperience =
-          !filters.experience ||
-          job.experience ===
-            filters.experience;
-
-        const matchesEligibility =
-          !filters.eligibility ||
-          job.eligibility?.status ===
-            filters.eligibility;
-
-        return (
-          matchesSearch &&
-          matchesLocation &&
-          matchesCompany &&
-          matchesType &&
-          matchesMode &&
-          matchesExperience &&
-          matchesEligibility
-        );
-      });
+        }
+      );
     }, [
       jobs,
       search,
@@ -394,20 +510,31 @@ function Jobs() {
   const paginatedJobs =
     filteredJobs.slice(
       startIndex,
-      startIndex + jobsPerPage
+      startIndex +
+        jobsPerPage
     );
 
   const eligibleJobs =
     jobs.filter(
       (job) =>
-        job.eligibility?.eligible
+        job.eligibility
+          ?.eligible
+    ).length;
+
+  const pendingInvitations =
+    invitations.filter(
+      (invitation) =>
+        invitation.status ===
+        "sent"
     ).length;
 
   const handleReset = () => {
     setSearch("");
     setLocationSearch("");
     setCompanySearch("");
-    setFilters(initialFilters);
+    setFilters(
+      initialFilters
+    );
     setCurrentPage(1);
   };
 
@@ -421,11 +548,13 @@ function Jobs() {
         const response =
           await getStudentJobRequest({
             token,
-            jobId: job.jobId,
+            jobId:
+              job.jobId,
           });
 
         setSelectedJob({
           ...response.job,
+
           eligibility:
             response.eligibility,
         });
@@ -438,12 +567,106 @@ function Jobs() {
           return;
         }
 
+        setSelectedJob(null);
+
         setErrorMessage(
           error.message ||
             "Unable to retrieve job details."
         );
       } finally {
-        setIsDetailsLoading(false);
+        setIsDetailsLoading(
+          false
+        );
+      }
+    };
+
+  const handleViewInvitationJob =
+    async (invitation) => {
+      if (
+        !invitation.jobAvailable
+      ) {
+        setErrorMessage(
+          "This invited job is no longer accepting applications."
+        );
+
+        return;
+      }
+
+      await handleViewDetails({
+        jobId:
+          invitation.job.jobId,
+      });
+    };
+
+  const handleInvitationResponse =
+    async (
+      invitation,
+      status
+    ) => {
+      setActiveInvitationId(
+        invitation.invitationId
+      );
+
+      setErrorMessage("");
+      setSuccessMessage("");
+
+      try {
+        const response =
+          await respondToStudentJobInvitationRequest({
+            token,
+
+            invitationId:
+              invitation.invitationId,
+
+            status,
+          });
+
+        setInvitations(
+          (
+            previousInvitations
+          ) =>
+            previousInvitations.map(
+              (
+                currentInvitation
+              ) =>
+                currentInvitation.invitationId ===
+                invitation.invitationId
+                  ? response.invitation
+                  : currentInvitation
+            )
+        );
+
+        setSuccessMessage(
+          response.message
+        );
+
+        if (
+          status ===
+            "accepted" &&
+          response.invitation
+            ?.jobAvailable
+        ) {
+          await handleViewInvitationJob(
+            response.invitation
+          );
+        }
+      } catch (error) {
+        if (
+          handleAuthenticationError(
+            error
+          )
+        ) {
+          return;
+        }
+
+        setErrorMessage(
+          error.message ||
+            "Unable to respond to the invitation."
+        );
+      } finally {
+        setActiveInvitationId(
+          null
+        );
       }
     };
 
@@ -451,7 +674,8 @@ function Jobs() {
     job
   ) => {
     if (
-      !job.eligibility?.eligible
+      !job.eligibility
+        ?.eligible
     ) {
       setErrorMessage(
         "You are not eligible to apply for this job."
@@ -462,7 +686,9 @@ function Jobs() {
 
     if (
       appliedJobIds.includes(
-        String(job.jobId)
+        String(
+          job.jobId
+        )
       )
     ) {
       setErrorMessage(
@@ -492,15 +718,20 @@ function Jobs() {
         const response =
           await applyForStudentJobRequest({
             token,
+
             jobId:
               applicationJob.jobId,
+
             coverNote,
           });
 
         setAppliedJobIds(
-          (previousIds) => [
+          (
+            previousIds
+          ) => [
             ...new Set([
               ...previousIds,
+
               String(
                 applicationJob.jobId
               ),
@@ -513,12 +744,16 @@ function Jobs() {
             "Application submitted successfully."
         );
 
-        setApplicationJob(null);
+        setApplicationJob(
+          null
+        );
+
         setSelectedJob(null);
 
         window.scrollTo({
           top: 0,
-          behavior: "smooth",
+          behavior:
+            "smooth",
         });
       } catch (error) {
         if (
@@ -551,8 +786,9 @@ function Jobs() {
         </h2>
 
         <p className="mt-2 text-neutral-600">
-          Checking published jobs and
-          your applications.
+          Checking published jobs,
+          invitations and your
+          applications.
         </p>
       </div>
     );
@@ -599,12 +835,16 @@ function Jobs() {
             />
 
             <div className="flex-1">
-              <p>{errorMessage}</p>
+              <p>
+                {errorMessage}
+              </p>
 
               <button
                 type="button"
                 onClick={() =>
-                  setErrorMessage("")
+                  setErrorMessage(
+                    ""
+                  )
                 }
                 className="mt-2 text-sm underline"
               >
@@ -615,32 +855,68 @@ function Jobs() {
         )}
 
         <JobsHero
-          totalJobs={jobs.length}
-          eligibleJobs={eligibleJobs}
+          totalJobs={
+            jobs.length
+          }
+          eligibleJobs={
+            eligibleJobs
+          }
+        />
+
+        <RecruiterInvitations
+          invitations={
+            invitations
+          }
+          pendingCount={
+            pendingInvitations
+          }
+          activeInvitationId={
+            activeInvitationId
+          }
+          onRespond={
+            handleInvitationResponse
+          }
+          onViewJob={
+            handleViewInvitationJob
+          }
         />
 
         <JobSearch
           search={search}
-          setSearch={setSearch}
-          location={locationSearch}
+          setSearch={
+            setSearch
+          }
+          location={
+            locationSearch
+          }
           setLocation={
             setLocationSearch
           }
-          company={companySearch}
+          company={
+            companySearch
+          }
           setCompany={
             setCompanySearch
           }
         />
 
         <JobFilters
-          filters={filters}
-          setFilters={setFilters}
-          onReset={handleReset}
+          filters={
+            filters
+          }
+          setFilters={
+            setFilters
+          }
+          onReset={
+            handleReset
+          }
         />
 
         <AIRecommendations
           jobs={jobs}
-          student={student}
+          student={
+            student
+          }
         />
 
         <SavedJobs />
@@ -657,7 +933,9 @@ function Jobs() {
 
               <p className="mt-1 text-neutral-600">
                 Showing{" "}
-                {filteredJobs.length}{" "}
+                {
+                  filteredJobs.length
+                }{" "}
                 matching{" "}
                 {filteredJobs.length ===
                 1
@@ -668,7 +946,8 @@ function Jobs() {
             </div>
 
             <p className="text-sm font-semibold text-neutral-500">
-              Page {currentPage} of{" "}
+              Page{" "}
+              {currentPage} of{" "}
               {totalPages}
             </p>
           </div>
@@ -676,7 +955,9 @@ function Jobs() {
           {paginatedJobs.length >
           0 ? (
             <JobGrid
-              jobs={paginatedJobs}
+              jobs={
+                paginatedJobs
+              }
               appliedJobIds={
                 appliedJobIds
               }
@@ -689,7 +970,9 @@ function Jobs() {
             />
           ) : (
             <EmptyJobs
-              onReset={handleReset}
+              onReset={
+                handleReset
+              }
             />
           )}
         </section>
@@ -712,27 +995,35 @@ function Jobs() {
 
       {selectedJob && (
         <JobDetailsModal
-          job={selectedJob}
+          job={
+            selectedJob
+          }
           isLoading={
             isDetailsLoading
           }
-          isApplied={appliedJobIds.includes(
-            String(
-              selectedJob.jobId
+          isApplied={
+            appliedJobIds.includes(
+              String(
+                selectedJob.jobId
+              )
             )
-          )}
+          }
           onApply={
             handleOpenApplication
           }
           onClose={() =>
-            setSelectedJob(null)
+            setSelectedJob(
+              null
+            )
           }
         />
       )}
 
       {applicationJob && (
         <JobApplicationModal
-          job={applicationJob}
+          job={
+            applicationJob
+          }
           isSubmitting={
             isApplying
           }
@@ -756,6 +1047,265 @@ function Jobs() {
         />
       )}
     </>
+  );
+}
+
+function RecruiterInvitations({
+  invitations,
+  pendingCount,
+  activeInvitationId,
+  onRespond,
+  onViewJob,
+}) {
+  return (
+    <section className="overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-4 border-b border-neutral-200 bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
+              <UserCheck
+                size={22}
+              />
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-bold text-neutral-900">
+                Recruiter Invitations
+              </h2>
+
+              <p className="mt-1 text-sm text-neutral-600">
+                Opportunities
+                directly shared by
+                Recruiters.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <span className="inline-flex w-fit rounded-full bg-amber-100 px-4 py-2 text-sm font-bold text-amber-700">
+          {pendingCount} pending
+        </span>
+      </div>
+
+      {invitations.length >
+      0 ? (
+        <div className="grid gap-5 p-5 lg:grid-cols-2 sm:p-8">
+          {invitations.map(
+            (invitation) => {
+              const isWorking =
+                activeInvitationId ===
+                invitation.invitationId;
+
+              return (
+                <article
+                  key={
+                    invitation.invitationId
+                  }
+                  className="rounded-2xl border border-neutral-200 p-5"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                        <Building2
+                          size={21}
+                        />
+                      </div>
+
+                      <div>
+                        <h3 className="font-bold text-neutral-900">
+                          {
+                            invitation
+                              .company
+                              .companyName
+                          }
+                        </h3>
+
+                        <p className="mt-1 text-sm font-semibold text-blue-700">
+                          {
+                            invitation
+                              .job
+                              .jobTitle
+                          }
+                        </p>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`rounded-full border px-3 py-1 text-xs font-bold ${
+                        invitationStatusStyles[
+                          invitation.status
+                        ]
+                      }`}
+                    >
+                      {getInvitationStatusLabel(
+                        invitation.status
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 text-sm text-neutral-600 sm:grid-cols-2">
+                    <p className="flex items-center gap-2">
+                      <BriefcaseBusiness
+                        size={16}
+                      />
+
+                      {
+                        invitation
+                          .job
+                          .employmentType
+                      }
+                    </p>
+
+                    <p className="flex items-center gap-2">
+                      <MapPin
+                        size={16}
+                      />
+
+                      {[
+                        invitation
+                          .job.city,
+                        invitation
+                          .job.country,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") ||
+                        invitation
+                          .job
+                          .workMode}
+                    </p>
+
+                    <p className="flex items-center gap-2">
+                      <CalendarDays
+                        size={16}
+                      />
+
+                      Deadline:{" "}
+                      {
+                        invitation
+                          .job
+                          .applicationDeadline
+                      }
+                    </p>
+
+                    <p className="flex items-center gap-2">
+                      <Clock3
+                        size={16}
+                      />
+
+                      {formatDateTime(
+                        invitation.invitedAt
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl bg-neutral-50 p-4">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-neutral-700">
+                      <MessageSquare
+                        size={16}
+                      />
+
+                      Recruiter Message
+                    </p>
+
+                    <p className="mt-2 text-sm leading-6 text-neutral-600">
+                      {invitation.message ||
+                        "The Recruiter believes this opportunity may match your profile."}
+                    </p>
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onViewJob(
+                          invitation
+                        )
+                      }
+                      disabled={
+                        !invitation.jobAvailable ||
+                        isWorking
+                      }
+                      className="rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-700 disabled:opacity-40"
+                    >
+                      View Job
+                    </button>
+
+                    {invitation.canRespond && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={
+                            isWorking
+                          }
+                          onClick={() =>
+                            onRespond(
+                              invitation,
+                              "declined"
+                            )
+                          }
+                          className="inline-flex items-center gap-2 rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 disabled:opacity-50"
+                        >
+                          <XCircle
+                            size={17}
+                          />
+
+                          Decline
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={
+                            isWorking
+                          }
+                          onClick={() =>
+                            onRespond(
+                              invitation,
+                              "accepted"
+                            )
+                          }
+                          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                        >
+                          {isWorking ? (
+                            <LoaderCircle
+                              size={17}
+                              className="animate-spin"
+                            />
+                          ) : (
+                            <CheckCircle2
+                              size={17}
+                            />
+                          )}
+
+                          Accept
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </article>
+              );
+            }
+          )}
+        </div>
+      ) : (
+        <div className="px-6 py-12 text-center">
+          <UserCheck
+            size={40}
+            className="mx-auto text-neutral-400"
+          />
+
+          <h3 className="mt-4 text-lg font-bold text-neutral-900">
+            No Recruiter
+            invitations
+          </h3>
+
+          <p className="mt-2 text-neutral-600">
+            Invitations sent through
+            Candidate Search will
+            appear here.
+          </p>
+        </div>
+      )}
+    </section>
   );
 }
 
