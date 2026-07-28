@@ -1,5 +1,9 @@
 import databasePool from "../config/database.js";
 
+import {
+  createNotification,
+} from "./notificationModel.js";
+
 const statusInformation = {
   applied: {
     label: "Applied",
@@ -84,7 +88,10 @@ function createTimeline(row) {
   ];
 
   return stages.map(
-    (stage, index) => ({
+    (
+      stage,
+      index
+    ) => ({
       stage,
 
       completed:
@@ -98,7 +105,8 @@ function createTimeline(row) {
           ? formatDate(
               row.applied_at
             )
-          : index === currentIndex
+          : index ===
+              currentIndex
             ? formatDate(
                 row.updated_at
               )
@@ -117,10 +125,14 @@ function mapApplication(row) {
 
   return {
     applicationId:
-      String(row.application_id),
+      String(
+        row.application_id
+      ),
 
     jobId:
-      String(row.job_id),
+      String(
+        row.job_id
+      ),
 
     company: {
       companyName:
@@ -183,7 +195,10 @@ function mapApplication(row) {
         row.application_deadline
           ? String(
               row.application_deadline
-            ).slice(0, 10)
+            ).slice(
+              0,
+              10
+            )
           : "",
 
       jobDescription:
@@ -193,7 +208,9 @@ function mapApplication(row) {
     resume: {
       resumeId:
         row.resume_id
-          ? String(row.resume_id)
+          ? String(
+              row.resume_id
+            )
           : null,
 
       fileName:
@@ -212,10 +229,14 @@ function mapApplication(row) {
       statusData.progress,
 
     appliedAt:
-      formatDate(row.applied_at),
+      formatDate(
+        row.applied_at
+      ),
 
     updatedAt:
-      formatDate(row.updated_at),
+      formatDate(
+        row.updated_at
+      ),
 
     withdrawnAt:
       formatDate(
@@ -269,7 +290,8 @@ const applicationSelectQuery = `
   FROM student_job_applications
     AS application
 
-  INNER JOIN recruiter_jobs AS job
+  INNER JOIN recruiter_jobs
+    AS job
     ON job.job_id =
        application.job_id
 
@@ -291,13 +313,17 @@ export async function findLatestStudentResume(
 
         FROM student_resumes
 
-        WHERE user_id = ?
+        WHERE
+          user_id = ?
 
-        ORDER BY updated_at DESC
+        ORDER BY
+          updated_at DESC
 
         LIMIT 1
       `,
-      [userId]
+      [
+        userId,
+      ]
     );
 
   if (!rows[0]) {
@@ -309,7 +335,8 @@ export async function findLatestStudentResume(
       rows[0].resume_id,
 
     fileName:
-      rows[0].original_file_name ||
+      rows[0]
+        .original_file_name ||
       "Student Resume.pdf",
   };
 }
@@ -325,15 +352,21 @@ export async function findStudentApplicationByJob({
 
         WHERE
           application.student_user_id = ?
+
           AND application.job_id = ?
 
         LIMIT 1
       `,
-      [userId, jobId]
+      [
+        userId,
+        jobId,
+      ]
     );
 
   return rows[0]
-    ? mapApplication(rows[0])
+    ? mapApplication(
+        rows[0]
+      )
     : null;
 }
 
@@ -352,7 +385,9 @@ export async function findStudentApplications(
           application.applied_at DESC,
           application.application_id DESC
       `,
-      [userId]
+      [
+        userId,
+      ]
     );
 
   return rows.map(
@@ -371,6 +406,7 @@ export async function findStudentApplicationById({
 
         WHERE
           application.student_user_id = ?
+
           AND application.application_id = ?
 
         LIMIT 1
@@ -382,7 +418,9 @@ export async function findStudentApplicationById({
     );
 
   return rows[0]
-    ? mapApplication(rows[0])
+    ? mapApplication(
+        rows[0]
+      )
     : null;
 }
 
@@ -393,71 +431,383 @@ export async function createStudentApplication({
   resumeFileName,
   coverNote,
 }) {
-  const [result] =
-    await databasePool.execute(
-      `
-        INSERT INTO student_job_applications (
-          student_user_id,
-          job_id,
-          resume_id,
-          resume_file_name,
-          cover_note,
-          status
-        )
-        VALUES (?, ?, ?, ?, ?, 'applied')
-      `,
-      [
-        userId,
-        jobId,
-        resumeId,
-        resumeFileName,
-        coverNote || null,
-      ]
-    );
+  const connection =
+    await databasePool
+      .getConnection();
 
-  return findStudentApplicationById({
-    userId,
-    applicationId:
-      result.insertId,
-  });
+  try {
+    await connection
+      .beginTransaction();
+
+    const [contextRows] =
+      await connection.execute(
+        `
+          SELECT
+            job.job_id,
+            job.job_title,
+            job.recruiter_user_id,
+
+            student.full_name
+              AS student_name,
+
+            student.email
+              AS student_email
+
+          FROM recruiter_jobs
+            AS job
+
+          INNER JOIN users
+            AS student
+            ON student.user_id = ?
+
+          WHERE
+            job.job_id = ?
+
+          LIMIT 1
+        `,
+        [
+          userId,
+          jobId,
+        ]
+      );
+
+    if (!contextRows[0]) {
+      throw new Error(
+        "Unable to find the job or Student account."
+      );
+    }
+
+    const applicationContext =
+      contextRows[0];
+
+    const [result] =
+      await connection.execute(
+        `
+          INSERT INTO student_job_applications (
+            student_user_id,
+            job_id,
+            resume_id,
+            resume_file_name,
+            cover_note,
+            status
+          )
+          VALUES (?, ?, ?, ?, ?, 'applied')
+        `,
+        [
+          userId,
+          jobId,
+          resumeId,
+          resumeFileName,
+          coverNote || null,
+        ]
+      );
+
+    const applicationId =
+      result.insertId;
+
+    await createNotification({
+      recipientUserId:
+        applicationContext
+          .recruiter_user_id,
+
+      actorUserId:
+        userId,
+
+      category:
+        "application",
+
+      notificationType:
+        "new_application_received",
+
+      title:
+        "New application received",
+
+      message:
+        `${applicationContext.student_name} applied for the ${applicationContext.job_title} position.`,
+
+      actionUrl:
+        "/recruiter/applicants",
+
+      referenceType:
+        "application",
+
+      referenceId:
+        applicationId,
+
+      metadata: {
+        applicationId:
+          String(
+            applicationId
+          ),
+
+        jobId:
+          String(
+            applicationContext.job_id
+          ),
+
+        jobTitle:
+          applicationContext
+            .job_title,
+
+        studentUserId:
+          String(userId),
+
+        studentName:
+          applicationContext
+            .student_name,
+
+        studentEmail:
+          applicationContext
+            .student_email,
+
+        resumeId:
+          String(resumeId),
+
+        resumeFileName,
+
+        coverNote:
+          coverNote || "",
+      },
+
+      connection,
+    });
+
+    await connection.commit();
+
+    return findStudentApplicationById({
+      userId,
+      applicationId,
+    });
+  } catch (error) {
+    await connection.rollback();
+
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 export async function withdrawStudentApplication({
   userId,
   applicationId,
 }) {
-  const [result] =
-    await databasePool.execute(
+  const connection =
+    await databasePool
+      .getConnection();
+
+  try {
+    await connection
+      .beginTransaction();
+
+    const [rows] =
+      await connection.execute(
+        `
+          SELECT
+            application.application_id,
+            application.status,
+            application.job_id,
+
+            job.job_title,
+            job.recruiter_user_id,
+
+            student.full_name
+              AS student_name,
+
+            student.email
+              AS student_email
+
+          FROM student_job_applications
+            AS application
+
+          INNER JOIN recruiter_jobs
+            AS job
+            ON job.job_id =
+               application.job_id
+
+          INNER JOIN users
+            AS student
+            ON student.user_id =
+               application.student_user_id
+
+          WHERE
+            application.application_id = ?
+
+            AND application.student_user_id = ?
+
+          LIMIT 1
+
+          FOR UPDATE
+        `,
+        [
+          applicationId,
+          userId,
+        ]
+      );
+
+    if (!rows[0]) {
+      await connection.rollback();
+
+      return null;
+    }
+
+    const applicationContext =
+      rows[0];
+
+    const withdrawableStatuses = [
+      "applied",
+      "under_review",
+      "shortlisted",
+      "interview",
+    ];
+
+    if (
+      !withdrawableStatuses.includes(
+        applicationContext.status
+      )
+    ) {
+      await connection.rollback();
+
+      return null;
+    }
+
+    const [result] =
+      await connection.execute(
+        `
+          UPDATE student_job_applications
+
+          SET
+            status = 'withdrawn',
+
+            withdrawn_at =
+              CURRENT_TIMESTAMP,
+
+            status_updated_by_user_id = ?,
+
+            status_updated_at =
+              CURRENT_TIMESTAMP
+
+          WHERE
+            application_id = ?
+
+            AND student_user_id = ?
+
+            AND status IN (
+              'applied',
+              'under_review',
+              'shortlisted',
+              'interview'
+            )
+        `,
+        [
+          userId,
+          applicationId,
+          userId,
+        ]
+      );
+
+    if (
+      result.affectedRows === 0
+    ) {
+      await connection.rollback();
+
+      return null;
+    }
+
+    await connection.execute(
       `
-        UPDATE student_job_applications
-
-        SET
-          status = 'withdrawn',
-          withdrawn_at =
-            CURRENT_TIMESTAMP
-
-        WHERE
-          application_id = ?
-          AND student_user_id = ?
-          AND status IN (
-            'applied',
-            'under_review',
-            'shortlisted',
-            'interview'
-          )
+        INSERT INTO application_status_history (
+          application_id,
+          changed_by_user_id,
+          previous_status,
+          new_status,
+          note
+        )
+        VALUES (?, ?, ?, 'withdrawn', ?)
       `,
       [
         applicationId,
         userId,
+        applicationContext.status,
+        "Student withdrew the application.",
       ]
     );
 
-  if (result.affectedRows === 0) {
-    return null;
-  }
+    await createNotification({
+      recipientUserId:
+        applicationContext
+          .recruiter_user_id,
 
-  return findStudentApplicationById({
-    userId,
-    applicationId,
-  });
+      actorUserId:
+        userId,
+
+      category:
+        "application",
+
+      notificationType:
+        "application_withdrawn",
+
+      title:
+        "Application withdrawn",
+
+      message:
+        `${applicationContext.student_name} withdrew the application for the ${applicationContext.job_title} position.`,
+
+      actionUrl:
+        "/recruiter/applicants",
+
+      referenceType:
+        "application",
+
+      referenceId:
+        applicationId,
+
+      metadata: {
+        applicationId:
+          String(
+            applicationId
+          ),
+
+        jobId:
+          String(
+            applicationContext.job_id
+          ),
+
+        jobTitle:
+          applicationContext
+            .job_title,
+
+        studentUserId:
+          String(userId),
+
+        studentName:
+          applicationContext
+            .student_name,
+
+        studentEmail:
+          applicationContext
+            .student_email,
+
+        previousStatus:
+          applicationContext.status,
+
+        newStatus:
+          "withdrawn",
+      },
+
+      connection,
+    });
+
+    await connection.commit();
+
+    return findStudentApplicationById({
+      userId,
+      applicationId,
+    });
+  } catch (error) {
+    await connection.rollback();
+
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
