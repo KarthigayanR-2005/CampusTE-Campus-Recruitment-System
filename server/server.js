@@ -30,15 +30,6 @@ if (environmentResult.error) {
   process.exit(1);
 }
 
-/*
-|--------------------------------------------------------------------------
-| Dynamic imports
-|--------------------------------------------------------------------------
-|
-| The .env file is loaded before importing database-dependent modules.
-|
-*/
-
 const [
   {
     testDatabaseConnection,
@@ -98,6 +89,11 @@ const [
     default:
       notificationRoutes,
   },
+
+  {
+    default:
+      offerRoutes,
+  },
 ] = await Promise.all([
   import(
     "./src/config/database.js"
@@ -146,23 +142,22 @@ const [
   import(
     "./src/routes/notificationRoutes.js"
   ),
+
+  import(
+    "./src/routes/offerRoutes.js"
+  ),
 ]);
 
 const app = express();
 
 const PORT =
-  Number(process.env.PORT) ||
-  5000;
+  Number(
+    process.env.PORT
+  ) || 5000;
 
 const CLIENT_URL =
   process.env.CLIENT_URL ||
   "http://localhost:5173";
-
-/*
-|--------------------------------------------------------------------------
-| Global middleware
-|--------------------------------------------------------------------------
-*/
 
 app.use(
   cors({
@@ -175,14 +170,10 @@ app.use(
 );
 
 app.use(
-  express.json()
+  express.json({
+    limit: "2mb",
+  })
 );
-
-/*
-|--------------------------------------------------------------------------
-| Root route
-|--------------------------------------------------------------------------
-*/
 
 app.get(
   "/",
@@ -200,12 +191,6 @@ app.get(
       });
   }
 );
-
-/*
-|--------------------------------------------------------------------------
-| Health-check route
-|--------------------------------------------------------------------------
-*/
 
 app.get(
   "/api/health",
@@ -265,33 +250,15 @@ app.get(
   }
 );
 
-/*
-|--------------------------------------------------------------------------
-| Authentication routes
-|--------------------------------------------------------------------------
-*/
-
 app.use(
   "/api/auth",
   authRoutes
 );
 
-/*
-|--------------------------------------------------------------------------
-| Admin routes
-|--------------------------------------------------------------------------
-*/
-
 app.use(
   "/api/admin",
   adminRoutes
 );
-
-/*
-|--------------------------------------------------------------------------
-| Student routes
-|--------------------------------------------------------------------------
-*/
 
 app.use(
   "/api/student",
@@ -313,12 +280,6 @@ app.use(
   studentInterviewRoutes
 );
 
-/*
-|--------------------------------------------------------------------------
-| Recruiter routes
-|--------------------------------------------------------------------------
-*/
-
 app.use(
   "/api/recruiter",
   recruiterCompanyProfileRoutes
@@ -339,31 +300,15 @@ app.use(
   recruiterInterviewRoutes
 );
 
-/*
-|--------------------------------------------------------------------------
-| Shared notification routes
-|--------------------------------------------------------------------------
-|
-| Available to every authenticated role:
-|
-| GET    /api/notifications
-| GET    /api/notifications/:notificationId
-| PATCH  /api/notifications/:notificationId/read
-| PATCH  /api/notifications/read-all
-| DELETE /api/notifications/:notificationId
-|
-*/
-
 app.use(
   "/api",
   notificationRoutes
 );
 
-/*
-|--------------------------------------------------------------------------
-| 404 handler
-|--------------------------------------------------------------------------
-*/
+app.use(
+  "/api",
+  offerRoutes
+);
 
 app.use(
   (
@@ -380,12 +325,6 @@ app.use(
       });
   }
 );
-
-/*
-|--------------------------------------------------------------------------
-| Start server
-|--------------------------------------------------------------------------
-*/
 
 async function startServer() {
   try {
