@@ -9,6 +9,7 @@ import {
   AlertCircle,
   CheckCircle2,
   LoaderCircle,
+  X,
 } from "lucide-react";
 
 import {
@@ -22,7 +23,8 @@ import ApplicationFilters from "../../components/student/applications/Applicatio
 import ApplicationsGrid from "../../components/student/applications/ApplicationsGrid";
 import EmptyApplications from "../../components/student/applications/EmptyApplications";
 import ApplicationPagination from "../../components/student/applications/ApplicationPagination";
-import ApplicationDetailsModal from "../../components/student/applications/ApplicationDetailsModal";
+import ApplicationDetailsModal from "../../components/student/applications/ApplicationDetailsModal.jsx";
+import StudentOfferModal from "../../components/offers/StudentOfferModal.jsx";
 
 import {
   useAuth,
@@ -33,6 +35,10 @@ import {
   getStudentApplicationsRequest,
   withdrawStudentApplicationRequest,
 } from "../../services/studentApplicationService";
+
+import {
+  getStudentOffersRequest,
+} from "../../services/offerService.js";
 
 const initialFilters = {
   status: "",
@@ -47,7 +53,8 @@ function normalizeText(value) {
 }
 
 function Applications() {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   const {
     token,
@@ -60,6 +67,11 @@ function Applications() {
   ] = useState([]);
 
   const [
+    offers,
+    setOffers,
+  ] = useState([]);
+
+  const [
     search,
     setSearch,
   ] = useState("");
@@ -67,11 +79,18 @@ function Applications() {
   const [
     filters,
     setFilters,
-  ] = useState(initialFilters);
+  ] = useState(
+    initialFilters
+  );
 
   const [
     selectedApplication,
     setSelectedApplication,
+  ] = useState(null);
+
+  const [
+    offerApplication,
+    setOfferApplication,
   ] = useState(null);
 
   const [
@@ -109,19 +128,27 @@ function Applications() {
   const handleAuthenticationError =
     useCallback(
       (error) => {
-        if (error.status === 401) {
+        if (
+          error?.status === 401
+        ) {
           logout();
 
-          navigate("/login", {
-            replace: true,
-          });
+          navigate(
+            "/login",
+            {
+              replace: true,
+            }
+          );
 
           return true;
         }
 
         return false;
       },
-      [logout, navigate]
+      [
+        logout,
+        navigate,
+      ]
     );
 
   const loadApplications =
@@ -135,16 +162,34 @@ function Applications() {
       setErrorMessage("");
 
       try {
-        const response =
-          await getStudentApplicationsRequest({
+        const [
+          applicationResponse,
+          offerResponse,
+        ] = await Promise.all([
+          getStudentApplicationsRequest({
             token,
-          });
+          }),
+
+          getStudentOffersRequest({
+            token,
+          }),
+        ]);
 
         setApplications(
           Array.isArray(
-            response.applications
+            applicationResponse
+              ?.applications
           )
-            ? response.applications
+            ? applicationResponse
+                .applications
+            : []
+        );
+
+        setOffers(
+          Array.isArray(
+            offerResponse?.offers
+          )
+            ? offerResponse.offers
             : []
         );
       } catch (error) {
@@ -158,7 +203,7 @@ function Applications() {
 
         setErrorMessage(
           error.message ||
-            "Unable to retrieve your applications."
+            "Unable to retrieve your applications and offers."
         );
       } finally {
         setIsLoading(false);
@@ -172,17 +217,69 @@ function Applications() {
     loadApplications();
   }, [loadApplications]);
 
+  const offersByApplicationId =
+    useMemo(
+      () =>
+        new Map(
+          offers.map(
+            (offer) => [
+              String(
+                offer.applicationId
+              ),
+
+              offer,
+            ]
+          )
+        ),
+      [offers]
+    );
+
+  const applicationsWithOffers =
+    useMemo(
+      () =>
+        applications.map(
+          (application) => {
+            const offer =
+              offersByApplicationId.get(
+                String(
+                  application.applicationId
+                )
+              );
+
+            return {
+              ...application,
+
+              offer:
+                offer || null,
+
+              hasOffer:
+                Boolean(offer),
+
+              offerStatus:
+                offer?.status ||
+                null,
+            };
+          }
+        ),
+      [
+        applications,
+        offersByApplicationId,
+      ]
+    );
+
   const filteredApplications =
     useMemo(() => {
       const cleanedSearch =
-        normalizeText(search);
+        normalizeText(
+          search
+        );
 
       const cleanedLocation =
         normalizeText(
           filters.location
         );
 
-      return applications.filter(
+      return applicationsWithOffers.filter(
         (application) => {
           const companyName =
             application.company
@@ -192,11 +289,20 @@ function Applications() {
             application.job
               ?.jobTitle || "";
 
+          const offerDesignation =
+            application.offer
+              ?.designation || "";
+
           const location =
             [
-              application.job?.city,
+              application.job
+                ?.city,
+
               application.job
                 ?.country,
+
+              application.offer
+                ?.workLocation,
             ]
               .filter(Boolean)
               .join(" ");
@@ -204,7 +310,7 @@ function Applications() {
           const matchesSearch =
             !cleanedSearch ||
             normalizeText(
-              `${companyName} ${jobTitle}`
+              `${companyName} ${jobTitle} ${offerDesignation}`
             ).includes(
               cleanedSearch
             );
@@ -237,7 +343,7 @@ function Applications() {
         }
       );
     }, [
-      applications,
+      applicationsWithOffers,
       search,
       filters,
     ]);
@@ -245,6 +351,7 @@ function Applications() {
   const totalPages =
     Math.max(
       1,
+
       Math.ceil(
         filteredApplications.length /
           applicationsPerPage
@@ -275,13 +382,18 @@ function Applications() {
   const paginatedApplications =
     filteredApplications.slice(
       startIndex,
+
       startIndex +
         applicationsPerPage
     );
 
   const handleReset = () => {
     setSearch("");
-    setFilters(initialFilters);
+
+    setFilters(
+      initialFilters
+    );
+
     setCurrentPage(1);
   };
 
@@ -298,13 +410,31 @@ function Applications() {
         const response =
           await getStudentApplicationRequest({
             token,
+
             applicationId:
               application.applicationId,
           });
 
-        setSelectedApplication(
-          response.application
-        );
+        const offer =
+          offersByApplicationId.get(
+            String(
+              application.applicationId
+            )
+          );
+
+        setSelectedApplication({
+          ...response.application,
+
+          offer:
+            offer || null,
+
+          hasOffer:
+            Boolean(offer),
+
+          offerStatus:
+            offer?.status ||
+            null,
+        });
       } catch (error) {
         if (
           handleAuthenticationError(
@@ -326,15 +456,121 @@ function Applications() {
   const replaceApplication = (
     updatedApplication
   ) => {
+    if (!updatedApplication) {
+      return;
+    }
+
     setApplications(
-      (previousApplications) =>
+      (
+        previousApplications
+      ) =>
         previousApplications.map(
           (application) =>
-            application.applicationId ===
-            updatedApplication.applicationId
+            String(
+              application.applicationId
+            ) ===
+            String(
+              updatedApplication.applicationId
+            )
               ? updatedApplication
               : application
         )
+    );
+
+    setSelectedApplication(
+      (
+        previousApplication
+      ) =>
+        String(
+          previousApplication
+            ?.applicationId ||
+            ""
+        ) ===
+        String(
+          updatedApplication.applicationId
+        )
+          ? {
+              ...updatedApplication,
+
+              offer:
+                offersByApplicationId.get(
+                  String(
+                    updatedApplication.applicationId
+                  )
+                ) || null,
+            }
+          : previousApplication
+    );
+  };
+
+  const replaceOffer = (
+    updatedOffer
+  ) => {
+    if (!updatedOffer) {
+      return;
+    }
+
+    setOffers(
+      (
+        previousOffers
+      ) => {
+        const offerExists =
+          previousOffers.some(
+            (offer) =>
+              String(
+                offer.offerId
+              ) ===
+              String(
+                updatedOffer.offerId
+              )
+          );
+
+        if (offerExists) {
+          return previousOffers.map(
+            (offer) =>
+              String(
+                offer.offerId
+              ) ===
+              String(
+                updatedOffer.offerId
+              )
+                ? updatedOffer
+                : offer
+          );
+        }
+
+        return [
+          updatedOffer,
+          ...previousOffers,
+        ];
+      }
+    );
+
+    setSelectedApplication(
+      (
+        previousApplication
+      ) =>
+        String(
+          previousApplication
+            ?.applicationId ||
+            ""
+        ) ===
+        String(
+          updatedOffer.applicationId
+        )
+          ? {
+              ...previousApplication,
+
+              offer:
+                updatedOffer,
+
+              hasOffer:
+                true,
+
+              offerStatus:
+                updatedOffer.status,
+            }
+          : previousApplication
     );
   };
 
@@ -342,7 +578,11 @@ function Applications() {
     async (application) => {
       const confirmed =
         window.confirm(
-          `Withdraw your application for "${application.job.jobTitle}"?`
+          `Withdraw your application for "${
+            application.job
+              ?.jobTitle ||
+            "this job"
+          }"?`
         );
 
       if (!confirmed) {
@@ -369,10 +609,6 @@ function Applications() {
           response.application
         );
 
-        setSelectedApplication(
-          response.application
-        );
-
         setSuccessMessage(
           response.message ||
             "Application withdrawn successfully."
@@ -395,6 +631,47 @@ function Applications() {
       }
     };
 
+  const handleOpenOffer = (
+    application
+  ) => {
+    const offer =
+      offersByApplicationId.get(
+        String(
+          application.applicationId
+        )
+      );
+
+    if (!offer) {
+      setErrorMessage(
+        "No offer is available for this application."
+      );
+
+      return;
+    }
+
+    setOfferApplication(
+      application
+    );
+
+    setSelectedApplication(
+      null
+    );
+
+    setSuccessMessage("");
+    setErrorMessage("");
+  };
+
+  const handleOfferSuccess = (
+    message
+  ) => {
+    setSuccessMessage(
+      message ||
+        "Offer response submitted successfully."
+    );
+
+    setErrorMessage("");
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-[500px] flex-col items-center justify-center rounded-3xl border border-neutral-200 bg-white">
@@ -408,8 +685,9 @@ function Applications() {
         </h2>
 
         <p className="mt-2 text-neutral-600">
-          Retrieving your application
-          history from MySQL.
+          Retrieving your
+          applications and offers
+          from MySQL.
         </p>
       </div>
     );
@@ -427,7 +705,23 @@ function Applications() {
               size={20}
             />
 
-            {successMessage}
+            <div className="flex-1">
+              {
+                successMessage
+              }
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setSuccessMessage(
+                  ""
+                )
+              }
+              className="rounded-lg p-1 hover:bg-emerald-100"
+            >
+              <X size={18} />
+            </button>
           </div>
         )}
 
@@ -441,13 +735,17 @@ function Applications() {
               className="mt-0.5 shrink-0"
             />
 
-            <div>
-              <p>{errorMessage}</p>
+            <div className="flex-1">
+              <p>
+                {errorMessage}
+              </p>
 
               <button
                 type="button"
                 onClick={() =>
-                  setErrorMessage("")
+                  setErrorMessage(
+                    ""
+                  )
                 }
                 className="mt-2 text-sm underline"
               >
@@ -465,19 +763,25 @@ function Applications() {
 
         <ApplicationsStats
           applications={
-            applications
+            applicationsWithOffers
           }
         />
 
         <ApplicationSearch
           search={search}
-          setSearch={setSearch}
+          setSearch={
+            setSearch
+          }
         />
 
         <ApplicationFilters
           filters={filters}
-          setFilters={setFilters}
-          onReset={handleReset}
+          setFilters={
+            setFilters
+          }
+          onReset={
+            handleReset
+          }
         />
 
         {paginatedApplications.length >
@@ -516,9 +820,12 @@ function Applications() {
         ) : (
           <EmptyApplications
             hasApplications={
-              applications.length > 0
+              applications.length >
+              0
             }
-            onReset={handleReset}
+            onReset={
+              handleReset
+            }
             onBrowseJobs={() =>
               navigate(
                 "/student/jobs"
@@ -533,22 +840,78 @@ function Applications() {
           application={
             selectedApplication
           }
+          offer={
+            offersByApplicationId.get(
+              String(
+                selectedApplication.applicationId
+              )
+            ) || null
+          }
           isLoading={
             isDetailsLoading
           }
           isWithdrawing={
-            withdrawingId ===
-            selectedApplication
-              .applicationId
+            String(
+              withdrawingId
+            ) ===
+            String(
+              selectedApplication.applicationId
+            )
           }
           onWithdraw={
             handleWithdraw
+          }
+          onViewOffer={() =>
+            handleOpenOffer(
+              selectedApplication
+            )
           }
           onClose={() =>
             setSelectedApplication(
               null
             )
           }
+        />
+      )}
+
+      {offerApplication && (
+        <StudentOfferModal
+          token={token}
+          application={
+            offerApplication
+          }
+          offer={
+            offersByApplicationId.get(
+              String(
+                offerApplication.applicationId
+              )
+            ) || null
+          }
+          onClose={() =>
+            setOfferApplication(
+              null
+            )
+          }
+          onOfferChanged={
+            replaceOffer
+          }
+          onSuccess={
+            handleOfferSuccess
+          }
+          onError={(error) => {
+            if (
+              handleAuthenticationError(
+                error
+              )
+            ) {
+              return;
+            }
+
+            setErrorMessage(
+              error.message ||
+                "Unable to manage the offer."
+            );
+          }}
         />
       )}
     </>
