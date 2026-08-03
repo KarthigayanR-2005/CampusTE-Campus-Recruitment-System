@@ -213,6 +213,102 @@ export function updateRecruiterCompanyProfileRequest({
 
 /*
 |--------------------------------------------------------------------------
+| Recruiter company branding
+|--------------------------------------------------------------------------
+*/
+
+export function uploadRecruiterCompanyLogoRequest({
+  token,
+  file,
+}) {
+  const formData =
+    new FormData();
+
+  formData.append(
+    "companyLogo",
+    file
+  );
+
+  return apiRequest(
+    "/recruiter/company-profile/logo",
+    {
+      method: "POST",
+      token,
+      body: formData,
+    }
+  );
+}
+
+export function getRecruiterCompanyLogoRequest({
+  token,
+}) {
+  return blobRequest(
+    "/recruiter/company-profile/logo",
+    {
+      token,
+    }
+  );
+}
+
+export function deleteRecruiterCompanyLogoRequest({
+  token,
+}) {
+  return apiRequest(
+    "/recruiter/company-profile/logo",
+    {
+      method: "DELETE",
+      token,
+    }
+  );
+}
+
+export function uploadRecruiterAuthorizedSignatureRequest({
+  token,
+  file,
+}) {
+  const formData =
+    new FormData();
+
+  formData.append(
+    "authorizedSignature",
+    file
+  );
+
+  return apiRequest(
+    "/recruiter/company-profile/signature",
+    {
+      method: "POST",
+      token,
+      body: formData,
+    }
+  );
+}
+
+export function getRecruiterAuthorizedSignatureRequest({
+  token,
+}) {
+  return blobRequest(
+    "/recruiter/company-profile/signature",
+    {
+      token,
+    }
+  );
+}
+
+export function deleteRecruiterAuthorizedSignatureRequest({
+  token,
+}) {
+  return apiRequest(
+    "/recruiter/company-profile/signature",
+    {
+      method: "DELETE",
+      token,
+    }
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
 | Recruiter job management
 |--------------------------------------------------------------------------
 */

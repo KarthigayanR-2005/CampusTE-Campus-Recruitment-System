@@ -162,9 +162,40 @@ function setBodyTextStyle(
     .fillColor("#374151");
 }
 
+function drawImageSafely(
+  document,
+  absoluteFilePath,
+  x,
+  y,
+  options
+) {
+  if (!absoluteFilePath) {
+    return false;
+  }
+
+  try {
+    document.image(
+      absoluteFilePath,
+      x,
+      y,
+      options
+    );
+
+    return true;
+  } catch (error) {
+    console.error(
+      "Offer-letter branding image error:",
+      error
+    );
+
+    return false;
+  }
+}
+
 function drawMainHeader(
   document,
-  offer
+  offer,
+  branding
 ) {
   const companyName =
     readText(
@@ -179,9 +210,37 @@ function drawMainHeader(
 
     offer.company
       ?.website,
+
+    offer.company
+      ?.contactEmail,
   ]
     .filter(Boolean)
     .join(" | ");
+
+  const logoPath =
+    branding?.logo
+      ?.absoluteFilePath ||
+    "";
+
+  const contentWidth =
+    getContentWidth(
+      document
+    );
+
+  const logoBoxWidth =
+    logoPath
+      ? 84
+      : 0;
+
+  const logoGap =
+    logoPath
+      ? 18
+      : 0;
+
+  const companyTextWidth =
+    contentWidth -
+    logoBoxWidth -
+    logoGap;
 
   document.save();
 
@@ -203,12 +262,10 @@ function drawMainHeader(
     .text(
       companyName,
       pageMargins.left,
-      34,
+      32,
       {
         width:
-          getContentWidth(
-            document
-          ),
+          companyTextWidth,
 
         align: "left",
       }
@@ -218,7 +275,7 @@ function drawMainHeader(
     .font(
       "Helvetica"
     )
-    .fontSize(9)
+    .fontSize(8.5)
     .fillColor("#DBEAFE")
     .text(
       companyDetails ||
@@ -227,9 +284,9 @@ function drawMainHeader(
       70,
       {
         width:
-          getContentWidth(
-            document
-          ),
+          companyTextWidth,
+
+        lineGap: 2,
       }
     );
 
@@ -242,12 +299,51 @@ function drawMainHeader(
     .text(
       "EMPLOYMENT OFFER LETTER",
       pageMargins.left,
-      94,
+      96,
       {
+        width:
+          companyTextWidth,
+
         characterSpacing:
           1.2,
       }
     );
+
+  if (logoPath) {
+    const logoBoxX =
+      document.page.width -
+      pageMargins.right -
+      logoBoxWidth;
+
+    const logoBoxY = 21;
+    const logoBoxHeight = 78;
+
+    document
+      .roundedRect(
+        logoBoxX,
+        logoBoxY,
+        logoBoxWidth,
+        logoBoxHeight,
+        8
+      )
+      .fill("#FFFFFF");
+
+    drawImageSafely(
+      document,
+      logoPath,
+      logoBoxX + 8,
+      logoBoxY + 8,
+      {
+        fit: [
+          logoBoxWidth - 16,
+          logoBoxHeight - 16,
+        ],
+
+        align: "center",
+        valign: "center",
+      }
+    );
+  }
 
   document.restore();
 
@@ -264,17 +360,6 @@ function drawContinuationHeader(
         ?.companyName,
       "Company"
     );
-
-  /*
-  |--------------------------------------------------------------------------
-  | Save the existing PDF graphics state
-  |--------------------------------------------------------------------------
-  |
-  | The previous version left the light-blue header text colour active.
-  | When Terms and Conditions continued onto another page, PDFKit used
-  | that colour for the remaining body text.
-  |
-  */
 
   document.save();
 
@@ -321,12 +406,6 @@ function drawContinuationHeader(
         align: "right",
       }
     );
-
-  /*
-  |--------------------------------------------------------------------------
-  | Restore body formatting
-  |--------------------------------------------------------------------------
-  */
 
   document.restore();
 
@@ -646,12 +725,6 @@ function drawTerms(
     "4. Please communicate your acceptance before the offer expiry date mentioned in this letter.",
   ].join("\n\n");
 
-  /*
-  |--------------------------------------------------------------------------
-  | Explicitly apply the body style before flowing text across pages
-  |--------------------------------------------------------------------------
-  */
-
   setBodyTextStyle(
     document
   );
@@ -677,11 +750,12 @@ function drawTerms(
 
 function drawSignatureSection(
   document,
-  offer
+  offer,
+  branding
 ) {
   ensureSpace(
     document,
-    185
+    230
   );
 
   drawSectionTitle(
@@ -709,7 +783,7 @@ function drawSignatureSection(
       }
     );
 
-  document.moveDown(2.2);
+  document.moveDown(1.5);
 
   const contentWidth =
     getContentWidth(
@@ -732,8 +806,59 @@ function drawSignatureSection(
     columnWidth +
     columnGap;
 
+  const signaturePath =
+    branding?.signature
+      ?.absoluteFilePath ||
+    "";
+
+  const signatureTop =
+    document.y + 4;
+
+  const signatureHeight =
+    signaturePath
+      ? 56
+      : 28;
+
+  if (signaturePath) {
+    drawImageSafely(
+      document,
+      signaturePath,
+      leftX,
+      signatureTop,
+      {
+        fit: [
+          columnWidth,
+          signatureHeight,
+        ],
+
+        align: "left",
+        valign: "center",
+      }
+    );
+  } else {
+    document
+      .font(
+        "Helvetica-Oblique"
+      )
+      .fontSize(8.5)
+      .fillColor("#94A3B8")
+      .text(
+        "Authorized signature",
+        leftX,
+        signatureTop + 8,
+        {
+          width:
+            columnWidth,
+
+          align: "left",
+        }
+      );
+  }
+
   const lineY =
-    document.y + 38;
+    signatureTop +
+    signatureHeight +
+    8;
 
   document
     .save()
@@ -792,6 +917,26 @@ function drawSignatureSection(
       "Helvetica"
     )
     .fontSize(9)
+    .fillColor("#475569")
+    .text(
+      readText(
+        offer.recruiter
+          ?.designation,
+        "Authorized Signatory"
+      ),
+      leftX,
+      lineY + 26,
+      {
+        width:
+          columnWidth,
+      }
+    );
+
+  document
+    .font(
+      "Helvetica"
+    )
+    .fontSize(9)
     .fillColor("#64748B")
     .text(
       `For ${readText(
@@ -800,7 +945,7 @@ function drawSignatureSection(
         "the Company"
       )}`,
       leftX,
-      lineY + 26,
+      lineY + 41,
       {
         width:
           columnWidth,
@@ -843,8 +988,24 @@ function drawSignatureSection(
       }
     );
 
+  document
+    .font(
+      "Helvetica"
+    )
+    .fontSize(8.5)
+    .fillColor("#64748B")
+    .text(
+      "Response recorded digitally through CampusTE",
+      rightX,
+      lineY + 41,
+      {
+        width:
+          columnWidth,
+      }
+    );
+
   document.y =
-    lineY + 66;
+    lineY + 76;
 
   document
     .font(
@@ -853,7 +1014,7 @@ function drawSignatureSection(
     .fontSize(8.5)
     .fillColor("#64748B")
     .text(
-      "This document was generated through CampusTE using the offer information approved by the Recruiter.",
+      "This document was generated through CampusTE using the offer information and branding approved by the Recruiter.",
       pageMargins.left,
       document.y,
       {
@@ -914,6 +1075,7 @@ function addPageFooters(
 
 export async function generateOfferLetterPdf({
   offer,
+  branding = {},
 }) {
   await fileSystem.mkdir(
     offerLetterDirectory,
@@ -1040,7 +1202,8 @@ export async function generateOfferLetterPdf({
 
     drawMainHeader(
       document,
-      offer
+      offer,
+      branding
     );
 
     const generatedDate =
@@ -1160,7 +1323,8 @@ export async function generateOfferLetterPdf({
 
     drawSignatureSection(
       document,
-      offer
+      offer,
+      branding
     );
 
     addPageFooters(

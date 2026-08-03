@@ -9,6 +9,11 @@ import {
 } from "../models/offerLetterModel.js";
 
 import {
+  findRecruiterCompanyBrandingFile,
+  findRecruiterCompanyProfile,
+} from "../models/recruiterCompanyProfileModel.js";
+
+import {
   findRecruiterOfferById,
 } from "../models/offerModel.js";
 
@@ -21,6 +26,13 @@ const offerLetterDirectory =
     process.cwd(),
     "uploads",
     "offer-letters"
+  );
+
+const companyBrandingDirectory =
+  path.resolve(
+    process.cwd(),
+    "uploads",
+    "company-branding"
   );
 
 function parsePositiveId(value) {
@@ -60,6 +72,135 @@ function getAbsoluteOfferLetterPath(
   }
 
   return absoluteFilePath;
+}
+
+function getAbsoluteCompanyBrandingPath(
+  relativeFilePath
+) {
+  const absoluteFilePath =
+    path.resolve(
+      process.cwd(),
+      relativeFilePath
+    );
+
+  const validPrefix =
+    `${companyBrandingDirectory}${path.sep}`;
+
+  if (
+    !absoluteFilePath.startsWith(
+      validPrefix
+    )
+  ) {
+    throw new Error(
+      "Invalid company branding file path."
+    );
+  }
+
+  return absoluteFilePath;
+}
+
+async function getCompanyBrandingAsset({
+  recruiterUserId,
+  fileType,
+}) {
+  const brandingFile =
+    await findRecruiterCompanyBrandingFile({
+      userId:
+        recruiterUserId,
+
+      fileType,
+    });
+
+  if (
+    !brandingFile
+      ?.available ||
+    !brandingFile
+      .filePath
+  ) {
+    return null;
+  }
+
+  const absoluteFilePath =
+    getAbsoluteCompanyBrandingPath(
+      brandingFile.filePath
+    );
+
+  try {
+    await fs.access(
+      absoluteFilePath
+    );
+  } catch {
+    console.warn(
+      `Company ${fileType} metadata exists, but the image file was not found.`
+    );
+
+    return null;
+  }
+
+  return {
+    ...brandingFile,
+    absoluteFilePath,
+  };
+}
+
+function createBrandedOffer({
+  offer,
+  companyProfile,
+}) {
+  return {
+    ...offer,
+
+    company: {
+      ...offer.company,
+
+      companyName:
+        companyProfile
+          ?.companyName ||
+        offer.company
+          ?.companyName ||
+        "",
+
+      headquarters:
+        companyProfile
+          ?.headquarters ||
+        offer.company
+          ?.headquarters ||
+        "",
+
+      website:
+        companyProfile
+          ?.website ||
+        offer.company
+          ?.website ||
+        "",
+
+      contactEmail:
+        companyProfile
+          ?.contactEmail ||
+        "",
+
+      contactPhone:
+        companyProfile
+          ?.contactPhone ||
+        "",
+    },
+
+    recruiter: {
+      ...offer.recruiter,
+
+      fullName:
+        companyProfile
+          ?.recruiterName ||
+        offer.recruiter
+          ?.fullName ||
+        "",
+
+      designation:
+        companyProfile
+          ?.recruiterDesignation ||
+        "",
+    },
+  };
 }
 
 async function safelyDeleteFile(
@@ -434,9 +575,51 @@ export async function generateRecruiterOfferLetter(
         });
     }
 
+    const [
+      companyProfile,
+      companyLogo,
+      authorizedSignature,
+    ] =
+      await Promise.all([
+        findRecruiterCompanyProfile(
+          request.auth.userId
+        ),
+
+        getCompanyBrandingAsset({
+          recruiterUserId:
+            request.auth.userId,
+
+          fileType:
+            "logo",
+        }),
+
+        getCompanyBrandingAsset({
+          recruiterUserId:
+            request.auth.userId,
+
+          fileType:
+            "signature",
+        }),
+      ]);
+
+    const brandedOffer =
+      createBrandedOffer({
+        offer,
+        companyProfile,
+      });
+
     generatedFile =
       await generateOfferLetterPdf({
-        offer,
+        offer:
+          brandedOffer,
+
+        branding: {
+          logo:
+            companyLogo,
+
+          signature:
+            authorizedSignature,
+        },
       });
 
     const result =
