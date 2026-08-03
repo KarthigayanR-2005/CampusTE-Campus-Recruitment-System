@@ -8,6 +8,14 @@ import {
   saveRecruiterOfferLetter,
 } from "../models/offerLetterModel.js";
 
+import {
+  findRecruiterOfferById,
+} from "../models/offerModel.js";
+
+import {
+  generateOfferLetterPdf,
+} from "../services/offerLetterPdfService.js";
+
 const offerLetterDirectory =
   path.resolve(
     process.cwd(),
@@ -369,6 +377,185 @@ export async function uploadRecruiterOfferLetter(
   }
 }
 
+export async function generateRecruiterOfferLetter(
+  request,
+  response
+) {
+  const offerId =
+    parsePositiveId(
+      request.params.offerId
+    );
+
+  if (!offerId) {
+    return response
+      .status(400)
+      .json({
+        success: false,
+
+        message:
+          "A valid offer ID is required.",
+      });
+  }
+
+  let generatedFile =
+    null;
+
+  try {
+    const offer =
+      await findRecruiterOfferById({
+        recruiterUserId:
+          request.auth.userId,
+
+        offerId,
+      });
+
+    if (!offer) {
+      return response
+        .status(404)
+        .json({
+          success: false,
+
+          message:
+            "Offer was not found.",
+        });
+    }
+
+    if (
+      offer.status !==
+      "draft"
+    ) {
+      return response
+        .status(409)
+        .json({
+          success: false,
+
+          message:
+            "Generate or regenerate the offer letter only while the offer is a draft.",
+        });
+    }
+
+    generatedFile =
+      await generateOfferLetterPdf({
+        offer,
+      });
+
+    const result =
+      await saveRecruiterOfferLetter({
+        recruiterUserId:
+          request.auth.userId,
+
+        offerId,
+
+        originalFileName:
+          generatedFile
+            .originalFileName,
+
+        storedFileName:
+          generatedFile
+            .storedFileName,
+
+        mimeType:
+          generatedFile
+            .mimeType,
+
+        sizeBytes:
+          generatedFile
+            .sizeBytes,
+
+        filePath:
+          generatedFile
+            .filePath,
+      });
+
+    if (
+      result.result ===
+      "not_found"
+    ) {
+      await safelyDeleteFile(
+        generatedFile.filePath
+      );
+
+      return response
+        .status(404)
+        .json({
+          success: false,
+
+          message:
+            "Offer was not found.",
+        });
+    }
+
+    if (
+      result.result ===
+      "invalid_status"
+    ) {
+      await safelyDeleteFile(
+        generatedFile.filePath
+      );
+
+      return response
+        .status(409)
+        .json({
+          success: false,
+
+          message:
+            "The offer is no longer a draft and its PDF cannot be generated.",
+        });
+    }
+
+    if (
+      result.previousFilePath &&
+      result.previousFilePath !==
+        generatedFile.filePath
+    ) {
+      await safelyDeleteFile(
+        result.previousFilePath
+      );
+    }
+
+    return response
+      .status(
+        result.previousFilePath
+          ? 200
+          : 201
+      )
+      .json({
+        success: true,
+
+        message:
+          result.previousFilePath
+            ? "Offer letter regenerated successfully."
+            : "Offer letter generated successfully.",
+
+        offerLetter:
+          result.offerLetter,
+      });
+  } catch (error) {
+    console.error(
+      "Generate offer letter error:",
+      error
+    );
+
+    if (
+      generatedFile
+        ?.filePath
+    ) {
+      await safelyDeleteFile(
+        generatedFile.filePath
+      );
+    }
+
+    return response
+      .status(500)
+      .json({
+        success: false,
+
+        message:
+          "Unable to generate the offer-letter PDF.",
+      });
+  }
+}
+
 export async function getRecruiterOfferLetterFile(
   request,
   response
@@ -649,7 +836,7 @@ export async function requireRecruiterOfferLetter(
           success: false,
 
           message:
-            "Upload the offer letter PDF before sending the offer.",
+            "Upload or generate the offer letter PDF before sending the offer.",
         });
     }
 

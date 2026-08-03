@@ -16,6 +16,7 @@ import {
 
 import {
   deleteRecruiterOfferLetter,
+  generateRecruiterOfferLetter,
   getRecruiterOfferLetterFile,
   getStudentOfferLetterFile,
   requireRecruiterOfferLetter,
@@ -77,6 +78,15 @@ offerRouter.put(
     "recruiter"
   ),
   updateOffer
+);
+
+offerRouter.post(
+  "/recruiter/offers/:offerId/letter/generate",
+  authenticate,
+  authorizeRoles(
+    "recruiter"
+  ),
+  generateRecruiterOfferLetter
 );
 
 offerRouter.post(
