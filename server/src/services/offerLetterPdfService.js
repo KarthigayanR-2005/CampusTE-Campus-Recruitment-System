@@ -153,6 +153,15 @@ function getContentWidth(
   );
 }
 
+function setBodyTextStyle(
+  document
+) {
+  document
+    .font("Helvetica")
+    .fontSize(10.5)
+    .fillColor("#374151");
+}
+
 function drawMainHeader(
   document,
   offer
@@ -174,16 +183,16 @@ function drawMainHeader(
     .filter(Boolean)
     .join(" | ");
 
+  document.save();
+
   document
-    .save()
     .rect(
       0,
       0,
       document.page.width,
       122
     )
-    .fill("#1D4ED8")
-    .restore();
+    .fill("#1D4ED8");
 
   document
     .fillColor("#FFFFFF")
@@ -240,6 +249,8 @@ function drawMainHeader(
       }
     );
 
+  document.restore();
+
   document.y = 148;
 }
 
@@ -254,16 +265,27 @@ function drawContinuationHeader(
       "Company"
     );
 
+  /*
+  |--------------------------------------------------------------------------
+  | Save the existing PDF graphics state
+  |--------------------------------------------------------------------------
+  |
+  | The previous version left the light-blue header text colour active.
+  | When Terms and Conditions continued onto another page, PDFKit used
+  | that colour for the remaining body text.
+  |
+  */
+
+  document.save();
+
   document
-    .save()
     .rect(
       0,
       0,
       document.page.width,
       68
     )
-    .fill("#1D4ED8")
-    .restore();
+    .fill("#1D4ED8");
 
   document
     .font(
@@ -299,6 +321,18 @@ function drawContinuationHeader(
         align: "right",
       }
     );
+
+  /*
+  |--------------------------------------------------------------------------
+  | Restore body formatting
+  |--------------------------------------------------------------------------
+  */
+
+  document.restore();
+
+  setBodyTextStyle(
+    document
+  );
 
   document.y = 92;
 }
@@ -612,27 +646,31 @@ function drawTerms(
     "4. Please communicate your acceptance before the offer expiry date mentioned in this letter.",
   ].join("\n\n");
 
-  document
-    .font(
-      "Helvetica"
-    )
-    .fontSize(10.5)
-    .fillColor("#374151")
-    .text(
-      terms ||
-        defaultTerms,
-      pageMargins.left,
-      document.y,
-      {
-        width:
-          getContentWidth(
-            document
-          ),
+  /*
+  |--------------------------------------------------------------------------
+  | Explicitly apply the body style before flowing text across pages
+  |--------------------------------------------------------------------------
+  */
 
-        align: "left",
-        lineGap: 4,
-      }
-    );
+  setBodyTextStyle(
+    document
+  );
+
+  document.text(
+    terms ||
+      defaultTerms,
+    pageMargins.left,
+    document.y,
+    {
+      width:
+        getContentWidth(
+          document
+        ),
+
+      align: "left",
+      lineGap: 4,
+    }
+  );
 
   document.moveDown(1.4);
 }
@@ -666,6 +704,7 @@ function drawSignatureSection(
           getContentWidth(
             document
           ),
+
         lineGap: 3,
       }
     );
@@ -1081,33 +1120,31 @@ export async function generateOfferLetterPdf({
 
     document.moveDown(0.9);
 
-    document
-      .font(
-        "Helvetica"
-      )
-      .fontSize(10.5)
-      .fillColor("#374151")
-      .text(
-        `We are pleased to offer you the position of ${readText(
-          offer.designation,
-          "the selected position"
-        )} at ${readText(
-          offer.company
-            ?.companyName,
-          "our company"
-        )}. Based on the recruitment process and the information provided by you, we believe that your skills and experience will be valuable to our organization.`,
-        pageMargins.left,
-        document.y,
-        {
-          width:
-            getContentWidth(
-              document
-            ),
+    setBodyTextStyle(
+      document
+    );
 
-          align: "left",
-          lineGap: 4,
-        }
-      );
+    document.text(
+      `We are pleased to offer you the position of ${readText(
+        offer.designation,
+        "the selected position"
+      )} at ${readText(
+        offer.company
+          ?.companyName,
+        "our company"
+      )}. Based on the recruitment process and the information provided by you, we believe that your skills and experience will be valuable to our organization.`,
+      pageMargins.left,
+      document.y,
+      {
+        width:
+          getContentWidth(
+            document
+          ),
+
+        align: "left",
+        lineGap: 4,
+      }
+    );
 
     document.moveDown(1.5);
 

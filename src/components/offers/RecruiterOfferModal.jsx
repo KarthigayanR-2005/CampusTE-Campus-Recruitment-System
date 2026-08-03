@@ -18,7 +18,9 @@ import {
   IndianRupee,
   LoaderCircle,
   MapPin,
+  RefreshCw,
   Send,
+  Sparkles,
   Trash2,
   Upload,
   User,
@@ -29,6 +31,7 @@ import {
 import {
   createRecruiterOfferRequest,
   deleteRecruiterOfferLetterRequest,
+  generateRecruiterOfferLetterRequest,
   getRecruiterOfferLetterRequest,
   sendRecruiterOfferRequest,
   updateRecruiterOfferRequest,
@@ -38,6 +41,12 @@ import {
 
 const MAX_OFFER_LETTER_SIZE =
   5 * 1024 * 1024;
+
+const inputClass =
+  "w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-neutral-100";
+
+const letterButtonClass =
+  "inline-flex items-center gap-2 rounded-xl border px-4 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-50";
 
 const offerStatusStyles = {
   draft:
@@ -182,8 +191,7 @@ function formatMoney({
       new Intl.NumberFormat(
         "en-IN",
         {
-          style:
-            "currency",
+          style: "currency",
 
           currency:
             currency ||
@@ -225,9 +233,7 @@ function formatFileSize(
     return "Size not available";
   }
 
-  if (
-    size < 1024
-  ) {
+  if (size < 1024) {
     return `${size} bytes`;
   }
 
@@ -421,14 +427,15 @@ function RecruiterOfferModal({
   };
 
   const mergeOfferLetter = (
-    offerLetter
+    offerLetter,
+    baseOffer = currentOffer
   ) => {
-    if (!currentOffer) {
+    if (!baseOffer) {
       return;
     }
 
-    const updatedOffer = {
-      ...currentOffer,
+    updateOfferState({
+      ...baseOffer,
 
       offerLetter: {
         available:
@@ -454,23 +461,16 @@ function RecruiterOfferModal({
               0
           ),
       },
-    };
-
-    updateOfferState(
-      updatedOffer
-    );
+    });
   };
 
   const handleRequestError = (
     error,
     fallbackMessage
   ) => {
-    const message =
-      error?.message ||
-      fallbackMessage;
-
     setErrorMessage(
-      message
+      error?.message ||
+      fallbackMessage
     );
 
     onError?.(
@@ -732,14 +732,12 @@ function RecruiterOfferModal({
         return;
       }
 
-      const fileName =
-        file.name
-          .toLowerCase();
-
       const validExtension =
-        fileName.endsWith(
-          ".pdf"
-        );
+        file.name
+          .toLowerCase()
+          .endsWith(
+            ".pdf"
+          );
 
       const validMimeType =
         !file.type ||
@@ -789,11 +787,123 @@ function RecruiterOfferModal({
       setErrorMessage("");
     };
 
+  const handleGenerateOfferLetter =
+    async () => {
+      if (!currentOffer) {
+        setErrorMessage(
+          "Save the offer draft before generating the PDF."
+        );
+
+        return;
+      }
+
+      if (
+        currentOffer.status !==
+        "draft"
+      ) {
+        setErrorMessage(
+          "The offer letter can only be generated or regenerated while the offer is a draft."
+        );
+
+        return;
+      }
+
+      const validationError =
+        validateForm();
+
+      if (
+        validationError
+      ) {
+        setErrorMessage(
+          validationError
+        );
+
+        return;
+      }
+
+      if (
+        hasOfferLetter
+      ) {
+        const confirmed =
+          window.confirm(
+            "Generate a new offer letter from the latest offer details? The current PDF will be replaced."
+          );
+
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      setIsLetterWorking(
+        true
+      );
+
+      setErrorMessage("");
+
+      try {
+        const saveResponse =
+          await updateRecruiterOfferRequest({
+            token,
+
+            offerId:
+              currentOffer
+                .offerId,
+
+            offerData:
+              getOfferPayload(),
+          });
+
+        const savedOffer =
+          saveResponse.offer;
+
+        updateOfferState(
+          savedOffer
+        );
+
+        const generateResponse =
+          await generateRecruiterOfferLetterRequest({
+            token,
+
+            offerId:
+              savedOffer
+                .offerId,
+          });
+
+        mergeOfferLetter(
+          generateResponse.offerLetter,
+          savedOffer
+        );
+
+        setSelectedOfferLetter(
+          null
+        );
+
+        if (
+          fileInputRef.current
+        ) {
+          fileInputRef.current.value =
+            "";
+        }
+
+        onSuccess?.(
+          generateResponse.message ||
+            "Offer letter generated successfully."
+        );
+      } catch (error) {
+        handleRequestError(
+          error,
+          "Unable to generate the offer-letter PDF."
+        );
+      } finally {
+        setIsLetterWorking(
+          false
+        );
+      }
+    };
+
   const handleUploadOfferLetter =
     async () => {
-      if (
-        !currentOffer
-      ) {
+      if (!currentOffer) {
         setErrorMessage(
           "Save the offer draft before uploading the PDF."
         );
@@ -874,15 +984,13 @@ function RecruiterOfferModal({
 
   const handleDeleteOfferLetter =
     async () => {
-      if (
-        !currentOffer
-      ) {
+      if (!currentOffer) {
         return;
       }
 
       const confirmed =
         window.confirm(
-          "Delete the uploaded offer letter PDF?"
+          "Delete the attached offer-letter PDF?"
         );
 
       if (!confirmed) {
@@ -906,17 +1014,7 @@ function RecruiterOfferModal({
           });
 
         mergeOfferLetter({
-          available:
-            false,
-
-          originalFileName:
-            "",
-
-          mimeType:
-            "",
-
-          sizeBytes:
-            0,
+          available: false,
         });
 
         setSelectedOfferLetter(
@@ -1041,11 +1139,7 @@ function RecruiterOfferModal({
           60000
         );
       } catch (error) {
-        if (
-          previewWindow
-        ) {
-          previewWindow.close();
-        }
+        previewWindow?.close();
 
         handleRequestError(
           error,
@@ -1060,9 +1154,7 @@ function RecruiterOfferModal({
 
   const handleSendOffer =
     async () => {
-      if (
-        !currentOffer
-      ) {
+      if (!currentOffer) {
         setErrorMessage(
           "Save the offer draft before sending it."
         );
@@ -1081,11 +1173,9 @@ function RecruiterOfferModal({
         return;
       }
 
-      if (
-        !hasOfferLetter
-      ) {
+      if (!hasOfferLetter) {
         setErrorMessage(
-          "Upload the offer letter PDF before sending the offer."
+          "Upload or generate the offer letter PDF before sending the offer."
         );
 
         return;
@@ -1137,9 +1227,7 @@ function RecruiterOfferModal({
 
   const handleWithdrawOffer =
     async () => {
-      if (
-        !currentOffer
-      ) {
+      if (!currentOffer) {
         return;
       }
 
@@ -1216,7 +1304,7 @@ function RecruiterOfferModal({
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-neutral-950/60 p-4 backdrop-blur-sm">
       <div className="max-h-[94vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 p-6 text-white sm:p-8">
+        <header className="flex items-start justify-between bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 p-6 text-white sm:p-8">
           <div>
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
@@ -1258,10 +1346,11 @@ function RecruiterOfferModal({
               isBusy
             }
             className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Close offer modal"
           >
             <X size={21} />
           </button>
-        </div>
+        </header>
 
         {currentOffer && (
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-neutral-200 bg-neutral-50 px-6 py-4 sm:px-8">
@@ -1385,7 +1474,9 @@ function RecruiterOfferModal({
                 maxLength={150}
                 required
                 placeholder="Software Development Engineer"
-                className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-neutral-100"
+                className={
+                  inputClass
+                }
               />
             </FormField>
 
@@ -1407,7 +1498,9 @@ function RecruiterOfferModal({
                 }
                 maxLength={80}
                 placeholder="Full-time"
-                className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-neutral-100"
+                className={
+                  inputClass
+                }
               />
             </FormField>
 
@@ -1463,7 +1556,7 @@ function RecruiterOfferModal({
                   }
                   maxLength={3}
                   required
-                  className="w-full rounded-xl border border-neutral-300 px-4 py-3 uppercase outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-neutral-100"
+                  className={`${inputClass} uppercase`}
                 />
               </FormField>
 
@@ -1483,7 +1576,7 @@ function RecruiterOfferModal({
                     !isDraft ||
                     isBusy
                   }
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-neutral-100"
+                  className={`${inputClass} bg-white`}
                 >
                   <option value="annual">
                     Annual
@@ -1521,7 +1614,9 @@ function RecruiterOfferModal({
                   undefined
                 }
                 required
-                className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-neutral-100"
+                className={
+                  inputClass
+                }
               />
             </FormField>
 
@@ -1547,7 +1642,9 @@ function RecruiterOfferModal({
                   minimumDate
                 }
                 required
-                className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-neutral-100"
+                className={
+                  inputClass
+                }
               />
             </FormField>
 
@@ -1601,7 +1698,9 @@ function RecruiterOfferModal({
                 }
                 maxLength={100}
                 placeholder="6 months"
-                className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-neutral-100"
+                className={
+                  inputClass
+                }
               />
             </FormField>
           </div>
@@ -1650,9 +1749,10 @@ function RecruiterOfferModal({
                 </h3>
 
                 <p className="mt-1 text-sm leading-6 text-neutral-600">
-                  Upload one valid PDF
-                  with a maximum size of
-                  5 MB. A PDF is required
+                  Generate a professional
+                  PDF using CampusTE or
+                  upload your company
+                  PDF. A PDF is required
                   before sending the
                   offer.
                 </p>
@@ -1662,7 +1762,8 @@ function RecruiterOfferModal({
             {!currentOffer && (
               <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-700">
                 Save the offer draft
-                before uploading the
+                before generating or
+                uploading the
                 offer-letter PDF.
               </div>
             )}
@@ -1671,15 +1772,15 @@ function RecruiterOfferModal({
               hasOfferLetter && (
                 <div className="mt-5 rounded-2xl border border-emerald-200 bg-white p-4">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
                         <FileCheck2
                           size={22}
                         />
                       </div>
 
-                      <div>
-                        <p className="font-bold text-neutral-900">
+                      <div className="min-w-0">
+                        <p className="truncate font-bold text-neutral-900">
                           {currentOffer
                             .offerLetter
                             ?.originalFileName ||
@@ -1707,7 +1808,7 @@ function RecruiterOfferModal({
                         disabled={
                           isBusy
                         }
-                        className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50"
+                        className={`${letterButtonClass} border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100`}
                       >
                         <Eye
                           size={17}
@@ -1726,7 +1827,7 @@ function RecruiterOfferModal({
                         disabled={
                           isBusy
                         }
-                        className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                        className={`${letterButtonClass} border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100`}
                       >
                         <Download
                           size={17}
@@ -1744,7 +1845,7 @@ function RecruiterOfferModal({
                           disabled={
                             isBusy
                           }
-                          className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                          className={`${letterButtonClass} border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100`}
                         >
                           <Trash2
                             size={17}
@@ -1759,7 +1860,75 @@ function RecruiterOfferModal({
               )}
 
             {canModifyOfferLetter && (
-              <div className="mt-5">
+              <div className="mt-5 space-y-4">
+                <div className="rounded-2xl border border-blue-200 bg-white p-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                        <Sparkles
+                          size={20}
+                        />
+                      </div>
+
+                      <div>
+                        <p className="font-bold text-neutral-900">
+                          Generate with
+                          CampusTE
+                        </p>
+
+                        <p className="mt-1 text-sm leading-6 text-neutral-600">
+                          CampusTE saves
+                          the latest offer
+                          details and
+                          creates a
+                          professional
+                          PDF.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={
+                        handleGenerateOfferLetter
+                      }
+                      disabled={
+                        isBusy
+                      }
+                      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3 font-semibold text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isLetterWorking ? (
+                        <LoaderCircle
+                          size={18}
+                          className="animate-spin"
+                        />
+                      ) : hasOfferLetter ? (
+                        <RefreshCw
+                          size={18}
+                        />
+                      ) : (
+                        <Sparkles
+                          size={18}
+                        />
+                      )}
+
+                      {hasOfferLetter
+                        ? "Regenerate from Details"
+                        : "Generate Offer Letter"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-indigo-200" />
+
+                  <span className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-500">
+                    Or upload company PDF
+                  </span>
+
+                  <div className="h-px flex-1 bg-indigo-200" />
+                </div>
+
                 <input
                   ref={
                     fileInputRef
@@ -1783,7 +1952,7 @@ function RecruiterOfferModal({
                     disabled={
                       isBusy
                     }
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-300 bg-white px-5 py-3 font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-300 bg-white px-5 py-3 font-semibold text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Upload
                       size={18}
@@ -1821,7 +1990,7 @@ function RecruiterOfferModal({
                       disabled={
                         isBusy
                       }
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {isLetterWorking ? (
                         <LoaderCircle
@@ -1968,74 +2137,76 @@ function RecruiterOfferModal({
             {currentOffer
               ?.status ===
               "draft" && (
-              <button
-                type="button"
-                onClick={
-                  handleSendOffer
-                }
-                disabled={
-                  isBusy ||
-                  !hasOfferLetter
-                }
-                title={
-                  hasOfferLetter
-                    ? "Send offer to the Student"
-                    : "Upload the offer letter PDF before sending"
-                }
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-3 font-semibold text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isWorking ? (
-                  <LoaderCircle
-                    size={18}
-                    className="animate-spin"
-                  />
-                ) : (
-                  <Send
-                    size={18}
-                  />
-                )}
+                <button
+                  type="button"
+                  onClick={
+                    handleSendOffer
+                  }
+                  disabled={
+                    isBusy ||
+                    !hasOfferLetter
+                  }
+                  title={
+                    hasOfferLetter
+                      ? "Send offer to the Student"
+                      : "Generate or upload the offer letter PDF before sending"
+                  }
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-3 font-semibold text-white hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isWorking ? (
+                    <LoaderCircle
+                      size={18}
+                      className="animate-spin"
+                    />
+                  ) : (
+                    <Send
+                      size={18}
+                    />
+                  )}
 
-                {hasOfferLetter
-                  ? "Send Offer"
-                  : "Upload PDF Before Sending"}
-              </button>
-            )}
+                  {hasOfferLetter
+                    ? "Send Offer"
+                    : "Create PDF Before Sending"}
+                </button>
+              )}
 
             {currentOffer
               ?.status ===
               "accepted" && (
-              <span className="inline-flex items-center gap-2 rounded-xl bg-emerald-100 px-5 py-3 font-bold text-emerald-700">
-                <CheckCircle2
-                  size={18}
-                />
-
-                Offer Accepted
-              </span>
-            )}
+                <StatusAction
+                  icon={
+                    CheckCircle2
+                  }
+                  className="bg-emerald-100 text-emerald-700"
+                >
+                  Offer Accepted
+                </StatusAction>
+              )}
 
             {currentOffer
               ?.status ===
               "declined" && (
-              <span className="inline-flex items-center gap-2 rounded-xl bg-rose-100 px-5 py-3 font-bold text-rose-700">
-                <XCircle
-                  size={18}
-                />
-
-                Offer Declined
-              </span>
-            )}
+                <StatusAction
+                  icon={
+                    XCircle
+                  }
+                  className="bg-rose-100 text-rose-700"
+                >
+                  Offer Declined
+                </StatusAction>
+              )}
 
             {currentOffer
               ?.status ===
               "sent" && (
-              <span className="inline-flex items-center gap-2 rounded-xl bg-blue-100 px-5 py-3 font-bold text-blue-700">
-                <Send
-                  size={18}
-                />
-
-                Awaiting Student Response
-              </span>
-            )}
+                <StatusAction
+                  icon={Send}
+                  className="bg-blue-100 text-blue-700"
+                >
+                  Awaiting Student
+                  Response
+                </StatusAction>
+              )}
           </div>
         </form>
       </div>
@@ -2108,6 +2279,24 @@ function SummaryValue({
           "Not available"}
       </p>
     </div>
+  );
+}
+
+function StatusAction({
+  icon: Icon,
+  className,
+  children,
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 font-bold ${className}`}
+    >
+      <Icon
+        size={18}
+      />
+
+      {children}
+    </span>
   );
 }
 

@@ -1,18 +1,11 @@
-import {
-  apiRequest,
-} from "./apiClient.js";
+import { apiRequest } from "./apiClient.js";
 
 const API_BASE_URL =
-  import.meta.env
-    .VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
   "http://localhost:5000/api";
 
-async function readResponse(
-  response
-) {
-  if (
-    response.status === 204
-  ) {
+async function readResponse(response) {
+  if (response.status === 204) {
     return null;
   }
 
@@ -44,11 +37,10 @@ function createRequestError(
   responseData,
   fallbackMessage
 ) {
-  const error =
-    new Error(
-      responseData?.message ||
-        fallbackMessage
-    );
+  const error = new Error(
+    responseData?.message ||
+      fallbackMessage
+  );
 
   error.status =
     response.status;
@@ -63,8 +55,7 @@ function createAuthorizationHeaders(
   token
 ) {
   const headers = {
-    Accept:
-      "application/json",
+    Accept: "application/json",
   };
 
   if (token) {
@@ -87,9 +78,7 @@ function getFileNameFromDisposition(
       /filename\*=UTF-8''([^;]+)/i
     );
 
-  if (
-    utfFileNameMatch?.[1]
-  ) {
+  if (utfFileNameMatch?.[1]) {
     try {
       return decodeURIComponent(
         utfFileNameMatch[1]
@@ -245,9 +234,7 @@ export function createRecruiterOfferRequest({
     {
       method: "POST",
       token,
-
-      body:
-        offerData,
+      body: offerData,
     }
   );
 }
@@ -262,9 +249,7 @@ export function updateRecruiterOfferRequest({
     {
       method: "PUT",
       token,
-
-      body:
-        offerData,
+      body: offerData,
     }
   );
 }
@@ -305,6 +290,19 @@ export function withdrawRecruiterOfferRequest({
 | Recruiter offer-letter APIs
 |--------------------------------------------------------------------------
 */
+
+export function generateRecruiterOfferLetterRequest({
+  token,
+  offerId,
+}) {
+  return apiRequest(
+    `/recruiter/offers/${offerId}/letter/generate`,
+    {
+      method: "POST",
+      token,
+    }
+  );
+}
 
 export function uploadRecruiterOfferLetterRequest({
   token,
