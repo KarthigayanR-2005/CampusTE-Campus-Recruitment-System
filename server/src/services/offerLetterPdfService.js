@@ -72,7 +72,9 @@ function createSafeFilePart(
   );
 }
 
-function formatDate(value) {
+function formatDate(
+  value
+) {
   if (!value) {
     return "Not provided";
   }
@@ -164,18 +166,18 @@ function setBodyTextStyle(
 
 function drawImageSafely(
   document,
-  absoluteFilePath,
+  imageSource,
   x,
   y,
   options
 ) {
-  if (!absoluteFilePath) {
+  if (!imageSource) {
     return false;
   }
 
   try {
     document.image(
-      absoluteFilePath,
+      imageSource,
       x,
       y,
       options
@@ -184,7 +186,7 @@ function drawImageSafely(
     return true;
   } catch (error) {
     console.error(
-      "Offer-letter branding image error:",
+      "Offer-letter image rendering error:",
       error
     );
 
@@ -1024,11 +1026,247 @@ function drawSignatureSection(
         align: "center",
       }
     );
+
+  document.moveDown(1.2);
+}
+
+function drawVerificationSection(
+  document,
+  verification
+) {
+  if (
+    !verification?.publicId ||
+    !verification?.qrCodeBuffer
+  ) {
+    return;
+  }
+
+  ensureSpace(
+    document,
+    205
+  );
+
+  drawSectionTitle(
+    document,
+    "CampusTE Offer Verification"
+  );
+
+  const contentWidth =
+    getContentWidth(
+      document
+    );
+
+  const boxX =
+    pageMargins.left;
+
+  const boxY =
+    document.y;
+
+  const boxHeight =
+    164;
+
+  const qrSize =
+    112;
+
+  const qrX =
+    boxX + 18;
+
+  const qrY =
+    boxY + 18;
+
+  const detailX =
+    qrX +
+    qrSize +
+    22;
+
+  const detailWidth =
+    contentWidth -
+    qrSize -
+    58;
+
+  document
+    .save()
+    .roundedRect(
+      boxX,
+      boxY,
+      contentWidth,
+      boxHeight,
+      10
+    )
+    .fillAndStroke(
+      "#F8FAFC",
+      "#CBD5E1"
+    )
+    .restore();
+
+  document
+    .save()
+    .roundedRect(
+      qrX - 5,
+      qrY - 5,
+      qrSize + 10,
+      qrSize + 10,
+      7
+    )
+    .fillAndStroke(
+      "#FFFFFF",
+      "#CBD5E1"
+    )
+    .restore();
+
+  drawImageSafely(
+    document,
+    verification
+      .qrCodeBuffer,
+    qrX,
+    qrY,
+    {
+      fit: [
+        qrSize,
+        qrSize,
+      ],
+
+      align: "center",
+      valign: "center",
+    }
+  );
+
+  document
+    .font(
+      "Helvetica-Bold"
+    )
+    .fontSize(13)
+    .fillColor("#111827")
+    .text(
+      "Scan to verify this offer",
+      detailX,
+      boxY + 22,
+      {
+        width:
+          detailWidth,
+      }
+    );
+
+  document
+    .font(
+      "Helvetica"
+    )
+    .fontSize(9.5)
+    .fillColor("#475569")
+    .text(
+      "Use the QR code to confirm that this document was issued through CampusTE and view its current status.",
+      detailX,
+      boxY + 46,
+      {
+        width:
+          detailWidth,
+
+        lineGap: 3,
+      }
+    );
+
+  document
+    .font(
+      "Helvetica-Bold"
+    )
+    .fontSize(8.5)
+    .fillColor("#64748B")
+    .text(
+      "VERIFICATION ID",
+      detailX,
+      boxY + 87,
+      {
+        width:
+          detailWidth,
+      }
+    );
+
+  document
+    .font(
+      "Courier-Bold"
+    )
+    .fontSize(9)
+    .fillColor("#1E3A8A")
+    .text(
+      readText(
+        verification
+          .publicId
+      ),
+      detailX,
+      boxY + 101,
+      {
+        width:
+          detailWidth,
+      }
+    );
+
+  document
+    .font(
+      "Helvetica-Bold"
+    )
+    .fontSize(8.5)
+    .fillColor("#64748B")
+    .text(
+      "DOCUMENT VERSION",
+      detailX,
+      boxY + 123,
+      {
+        width: 115,
+      }
+    );
+
+  document
+    .font(
+      "Helvetica-Bold"
+    )
+    .fontSize(9.5)
+    .fillColor("#111827")
+    .text(
+      `Version ${
+        verification
+          .documentVersion ||
+        1
+      }`,
+      detailX,
+      boxY + 137,
+      {
+        width: 115,
+      }
+    );
+
+  document
+    .font(
+      "Helvetica"
+    )
+    .fontSize(7.5)
+    .fillColor("#64748B")
+    .text(
+      readText(
+        verification
+          .displayUrl,
+        "CampusTE verification portal"
+      ),
+      qrX,
+      boxY + 137,
+      {
+        width:
+          qrSize,
+
+        align: "center",
+        ellipsis: true,
+      }
+    );
+
+  document.y =
+    boxY +
+    boxHeight +
+    18;
 }
 
 function addPageFooters(
   document,
-  offer
+  offer,
+  verification
 ) {
   const pageRange =
     document.bufferedPageRange();
@@ -1043,16 +1281,21 @@ function addPageFooters(
       pageIndex
     );
 
+    const verificationText =
+      verification?.publicId
+        ? ` | Verification: ${verification.publicId}`
+        : "";
+
     document
       .font(
         "Helvetica"
       )
-      .fontSize(8)
+      .fontSize(7.5)
       .fillColor("#64748B")
       .text(
         `CampusTE | Offer ID: ${
           offer.offerId
-        } | Page ${
+        }${verificationText} | Page ${
           pageIndex + 1
         } of ${
           pageRange.count
@@ -1076,6 +1319,7 @@ function addPageFooters(
 export async function generateOfferLetterPdf({
   offer,
   branding = {},
+  verification = {},
 }) {
   await fileSystem.mkdir(
     offerLetterDirectory,
@@ -1149,6 +1393,11 @@ export async function generateOfferLetterPdf({
             `Offer ID ${
               offer.offerId
             }`,
+
+          Keywords:
+            verification?.publicId
+              ? `CampusTE Offer ${verification.publicId}`
+              : "CampusTE Offer Letter",
 
           Creator:
             "CampusTE",
@@ -1327,9 +1576,15 @@ export async function generateOfferLetterPdf({
       branding
     );
 
+    drawVerificationSection(
+      document,
+      verification
+    );
+
     addPageFooters(
       document,
-      offer
+      offer,
+      verification
     );
 
     document.end();
@@ -1353,6 +1608,8 @@ export async function generateOfferLetterPdf({
 
       filePath:
         relativeFilePath,
+
+      absoluteFilePath,
     };
   } catch (error) {
     await fileSystem

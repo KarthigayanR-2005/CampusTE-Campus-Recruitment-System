@@ -14,12 +14,24 @@ import {
 } from "../models/recruiterCompanyProfileModel.js";
 
 import {
+  findActiveOfferVerification,
+  revokeActiveOfferVerification,
+  saveGeneratedOfferWithVerification,
+} from "../models/offerVerificationModel.js";
+
+import {
   findRecruiterOfferById,
 } from "../models/offerModel.js";
 
 import {
   generateOfferLetterPdf,
 } from "../services/offerLetterPdfService.js";
+
+import {
+  calculateFileSha256,
+  createOfferVerificationCredentials,
+  createVerificationQrBuffer,
+} from "../services/offerVerificationService.js";
 
 const offerLetterDirectory =
   path.resolve(
@@ -35,7 +47,9 @@ const companyBrandingDirectory =
     "company-branding"
   );
 
-function parsePositiveId(value) {
+function parsePositiveId(
+  value
+) {
   const parsedValue =
     Number(value);
 
@@ -99,6 +113,25 @@ function getAbsoluteCompanyBrandingPath(
   return absoluteFilePath;
 }
 
+function getVerificationDisplayUrl(
+  verificationUrl
+) {
+  try {
+    const parsedUrl =
+      new URL(
+        verificationUrl
+      );
+
+    parsedUrl.search = "";
+
+    return parsedUrl.toString();
+  } catch {
+    return String(
+      verificationUrl || ""
+    ).split("?")[0];
+  }
+}
+
 async function getCompanyBrandingAsset({
   recruiterUserId,
   fileType,
@@ -112,10 +145,8 @@ async function getCompanyBrandingAsset({
     });
 
   if (
-    !brandingFile
-      ?.available ||
-    !brandingFile
-      .filePath
+    !brandingFile?.available ||
+    !brandingFile.filePath
   ) {
     return null;
   }
@@ -225,6 +256,23 @@ async function safelyDeleteFile(
         error
       );
     }
+  }
+}
+
+async function safelyRevokeVerification({
+  recruiterUserId,
+  offerId,
+}) {
+  try {
+    await revokeActiveOfferVerification({
+      recruiterUserId,
+      offerId,
+    });
+  } catch (error) {
+    console.error(
+      "Revoke offer verification error:",
+      error
+    );
   }
 }
 
@@ -480,6 +528,13 @@ export async function uploadRecruiterOfferLetter(
       );
     }
 
+    await safelyRevokeVerification({
+      recruiterUserId:
+        request.auth.userId,
+
+      offerId,
+    });
+
     return response
       .status(
         result.previousFilePath
@@ -579,6 +634,7 @@ export async function generateRecruiterOfferLetter(
       companyProfile,
       companyLogo,
       authorizedSignature,
+      activeVerification,
     ] =
       await Promise.all([
         findRecruiterCompanyProfile(
@@ -600,6 +656,10 @@ export async function generateRecruiterOfferLetter(
           fileType:
             "signature",
         }),
+
+        findActiveOfferVerification(
+          offerId
+        ),
       ]);
 
     const brandedOffer =
@@ -607,6 +667,30 @@ export async function generateRecruiterOfferLetter(
         offer,
         companyProfile,
       });
+
+    const verificationCredentials =
+      createOfferVerificationCredentials({
+        offerId,
+      });
+
+    const documentVersion =
+      Number(
+        activeVerification
+          ?.documentVersion ||
+        0
+      ) + 1;
+
+    const qrCodeBuffer =
+      await createVerificationQrBuffer(
+        verificationCredentials
+          .verificationUrl
+      );
+
+    const verificationDisplayUrl =
+      getVerificationDisplayUrl(
+        verificationCredentials
+          .verificationUrl
+      );
 
     generatedFile =
       await generateOfferLetterPdf({
@@ -620,34 +704,71 @@ export async function generateRecruiterOfferLetter(
           signature:
             authorizedSignature,
         },
+
+        verification: {
+          publicId:
+            verificationCredentials
+              .verificationPublicId,
+
+          verificationUrl:
+            verificationCredentials
+              .verificationUrl,
+
+          displayUrl:
+            verificationDisplayUrl,
+
+          documentVersion,
+
+          qrCodeBuffer,
+        },
       });
 
+    const documentSha256 =
+      await calculateFileSha256(
+        generatedFile
+          .absoluteFilePath
+      );
+
     const result =
-      await saveRecruiterOfferLetter({
+      await saveGeneratedOfferWithVerification({
         recruiterUserId:
           request.auth.userId,
 
         offerId,
 
-        originalFileName:
-          generatedFile
-            .originalFileName,
+        offerLetter: {
+          originalFileName:
+            generatedFile
+              .originalFileName,
 
-        storedFileName:
-          generatedFile
-            .storedFileName,
+          storedFileName:
+            generatedFile
+              .storedFileName,
 
-        mimeType:
-          generatedFile
-            .mimeType,
+          mimeType:
+            generatedFile
+              .mimeType,
 
-        sizeBytes:
-          generatedFile
-            .sizeBytes,
+          sizeBytes:
+            generatedFile
+              .sizeBytes,
 
-        filePath:
-          generatedFile
-            .filePath,
+          filePath:
+            generatedFile
+              .filePath,
+        },
+
+        verification: {
+          verificationPublicId:
+            verificationCredentials
+              .verificationPublicId,
+
+          verificationTokenHash:
+            verificationCredentials
+              .verificationTokenHash,
+
+          documentSha256,
+        },
       });
 
     if (
@@ -707,11 +828,48 @@ export async function generateRecruiterOfferLetter(
 
         message:
           result.previousFilePath
-            ? "Offer letter regenerated successfully."
-            : "Offer letter generated successfully.",
+            ? "Verified offer letter regenerated successfully."
+            : "Verified offer letter generated successfully.",
 
-        offerLetter:
-          result.offerLetter,
+        offerLetter: {
+          available: true,
+
+          originalFileName:
+            generatedFile
+              .originalFileName,
+
+          mimeType:
+            generatedFile
+              .mimeType,
+
+          sizeBytes:
+            generatedFile
+              .sizeBytes,
+        },
+
+        verification: {
+          publicId:
+            result.verification
+              ?.publicId ||
+            verificationCredentials
+              .verificationPublicId,
+
+          documentVersion:
+            result.verification
+              ?.documentVersion ||
+            result.documentVersion ||
+            documentVersion,
+
+          status:
+            result.verification
+              ?.status ||
+            "active",
+
+          issuedAt:
+            result.verification
+              ?.issuedAt ||
+            null,
+        },
       });
   } catch (error) {
     console.error(
@@ -734,7 +892,7 @@ export async function generateRecruiterOfferLetter(
         success: false,
 
         message:
-          "Unable to generate the offer-letter PDF.",
+          "Unable to generate the verified offer-letter PDF.",
       });
   }
 }
@@ -878,6 +1036,13 @@ export async function deleteRecruiterOfferLetter(
     await safelyDeleteFile(
       result.previousFilePath
     );
+
+    await safelyRevokeVerification({
+      recruiterUserId:
+        request.auth.userId,
+
+      offerId,
+    });
 
     return response
       .status(200)
