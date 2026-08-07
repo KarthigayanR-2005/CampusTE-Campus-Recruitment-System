@@ -20,6 +20,7 @@ import Features from "../pages/Public/Features";
 import About from "../pages/Public/About";
 import Contact from "../pages/Public/Contact";
 import FAQ from "../pages/Public/FAQ";
+import OfferVerificationPage from "../pages/Public/OfferVerificationPage";
 
 // Authentication Pages
 import Login from "../pages/Auth/Login";
@@ -75,45 +76,119 @@ function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
+
+        {/*
+        |--------------------------------------------------------------------------
+        | Secure Public Offer Verification
+        |--------------------------------------------------------------------------
+        |
+        | This route intentionally does not use PublicLayout, AuthLayout or
+        | ProtectedRoute. Anyone with a valid QR verification URL can access
+        | the verification page without logging in.
+        |
+        */}
+
+        <Route
+          path="/verify-offer/:publicId"
+          element={
+            <OfferVerificationPage />
+          }
+        />
+
         {/* Public Website */}
-        <Route element={<PublicLayout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/features" element={<Features />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/faq" element={<FAQ />} />
+
+        <Route
+          element={
+            <PublicLayout />
+          }
+        >
+          <Route
+            path="/"
+            element={
+              <Home />
+            }
+          />
+
+          <Route
+            path="/features"
+            element={
+              <Features />
+            }
+          />
+
+          <Route
+            path="/about"
+            element={
+              <About />
+            }
+          />
+
+          <Route
+            path="/contact"
+            element={
+              <Contact />
+            }
+          />
+
+          <Route
+            path="/faq"
+            element={
+              <FAQ />
+            }
+          />
         </Route>
 
         {/* Authentication */}
-        <Route element={<AuthLayout />}>
-          <Route path="/login" element={<Login />} />
+
+        <Route
+          element={
+            <AuthLayout />
+          }
+        >
+          <Route
+            path="/login"
+            element={
+              <Login />
+            }
+          />
 
           <Route
             path="/register"
-            element={<Register />}
+            element={
+              <Register />
+            }
           />
 
           <Route
             path="/forgot-password"
-            element={<ForgotPassword />}
+            element={
+              <ForgotPassword />
+            }
           />
 
           <Route
             path="/verify-otp"
-            element={<OTPVerification />}
+            element={
+              <OTPVerification />
+            }
           />
 
           <Route
             path="/reset-password"
-            element={<ResetPassword />}
+            element={
+              <ResetPassword />
+            }
           />
         </Route>
 
         {/* Student Portal */}
+
         <Route
           path="/student"
           element={
-            <ProtectedRoute allowedRole="student">
+            <ProtectedRoute
+              allowedRole="student"
+            >
               <StudentLayout />
             </ProtectedRoute>
           }
@@ -130,50 +205,69 @@ function AppRoutes() {
 
           <Route
             path="dashboard"
-            element={<Dashboard />}
+            element={
+              <Dashboard />
+            }
           />
 
           <Route
             path="profile"
-            element={<Profile />}
+            element={
+              <Profile />
+            }
           />
 
           <Route
             path="jobs"
-            element={<Jobs />}
+            element={
+              <Jobs />
+            }
           />
 
           <Route
             path="applications"
-            element={<Applications />}
+            element={
+              <Applications />
+            }
           />
 
           <Route
             path="interviews"
-            element={<Interviews />}
+            element={
+              <Interviews />
+            }
           />
 
           <Route
             path="notifications"
-            element={<Notifications />}
+            element={
+              <Notifications />
+            }
           />
 
           <Route
             path="resume"
-            element={<Resume />}
+            element={
+              <Resume />
+            }
           />
 
           <Route
             path="settings"
-            element={<Settings />}
+            element={
+              <Settings />
+            }
           />
         </Route>
 
         {/* Recruiter Portal */}
+
         <Route
           path="/recruiter"
           element={
-            <ProtectedRoute allowedRole="recruiter">
+            <ProtectedRoute
+              allowedRole="recruiter"
+            >
               <RecruiterLayout />
             </ProtectedRoute>
           }
@@ -190,55 +284,76 @@ function AppRoutes() {
 
           <Route
             path="dashboard"
-            element={<DashboardRecruiter />}
+            element={
+              <DashboardRecruiter />
+            }
           />
 
           <Route
             path="company-profile"
-            element={<CompanyProfile />}
+            element={
+              <CompanyProfile />
+            }
           />
 
           <Route
             path="post-job"
-            element={<PostJob />}
+            element={
+              <PostJob />
+            }
           />
 
           <Route
             path="manage-jobs"
-            element={<ManageJobs />}
+            element={
+              <ManageJobs />
+            }
           />
 
           <Route
             path="applicants"
-            element={<Applicants />}
+            element={
+              <Applicants />
+            }
           />
 
           <Route
             path="candidates"
-            element={<CandidateSearch />}
+            element={
+              <CandidateSearch />
+            }
           />
 
           <Route
             path="interviews"
-            element={<RecruiterInterviews />}
+            element={
+              <RecruiterInterviews />
+            }
           />
 
           <Route
             path="notifications"
-            element={<RecruiterNotifications />}
+            element={
+              <RecruiterNotifications />
+            }
           />
 
           <Route
             path="settings"
-            element={<RecruiterSettings />}
+            element={
+              <RecruiterSettings />
+            }
           />
         </Route>
 
         {/* Placement Officer Portal */}
+
         <Route
           path="/placement-officer"
           element={
-            <ProtectedRoute allowedRole="placementOfficer">
+            <ProtectedRoute
+              allowedRole="placementOfficer"
+            >
               <PlacementOfficerLayout />
             </ProtectedRoute>
           }
@@ -255,55 +370,76 @@ function AppRoutes() {
 
           <Route
             path="dashboard"
-            element={<PlacementOfficerDashboard />}
+            element={
+              <PlacementOfficerDashboard />
+            }
           />
 
           <Route
             path="students"
-            element={<PlacementOfficerStudents />}
+            element={
+              <PlacementOfficerStudents />
+            }
           />
 
           <Route
             path="recruiters"
-            element={<PlacementOfficerRecruiters />}
+            element={
+              <PlacementOfficerRecruiters />
+            }
           />
 
           <Route
             path="placement-drives"
-            element={<PlacementDrives />}
+            element={
+              <PlacementDrives />
+            }
           />
 
           <Route
             path="applications"
-            element={<PlacementOfficerApplications />}
+            element={
+              <PlacementOfficerApplications />
+            }
           />
 
           <Route
             path="interviews"
-            element={<PlacementOfficerInterviews />}
+            element={
+              <PlacementOfficerInterviews />
+            }
           />
 
           <Route
             path="analytics"
-            element={<PlacementOfficerAnalytics />}
+            element={
+              <PlacementOfficerAnalytics />
+            }
           />
 
           <Route
             path="notifications"
-            element={<PlacementOfficerNotifications />}
+            element={
+              <PlacementOfficerNotifications />
+            }
           />
 
           <Route
             path="settings"
-            element={<PlacementOfficerSettings />}
+            element={
+              <PlacementOfficerSettings />
+            }
           />
         </Route>
 
         {/* Admin Portal */}
+
         <Route
           path="/admin"
           element={
-            <ProtectedRoute allowedRole="admin">
+            <ProtectedRoute
+              allowedRole="admin"
+            >
               <AdminLayout />
             </ProtectedRoute>
           }
@@ -320,51 +456,70 @@ function AppRoutes() {
 
           <Route
             path="dashboard"
-            element={<AdminDashboard />}
+            element={
+              <AdminDashboard />
+            }
           />
 
           <Route
             path="users"
-            element={<Users />}
+            element={
+              <Users />
+            }
           />
 
           <Route
             path="institutions"
-            element={<Institutions />}
+            element={
+              <Institutions />
+            }
           />
 
           <Route
             path="recruiters"
-            element={<Recruiters />}
+            element={
+              <Recruiters />
+            }
           />
 
           <Route
             path="placement-officers"
-            element={<PlacementOfficers />}
+            element={
+              <PlacementOfficers />
+            }
           />
 
           <Route
             path="analytics"
-            element={<SystemAnalytics />}
+            element={
+              <SystemAnalytics />
+            }
           />
 
           <Route
             path="audit-logs"
-            element={<AuditLogs />}
+            element={
+              <AuditLogs />
+            }
           />
 
           <Route
             path="notifications"
-            element={<AdminNotifications />}
+            element={
+              <AdminNotifications />
+            }
           />
 
           <Route
             path="settings"
-            element={<AdminSettings />}
+            element={
+              <AdminSettings />
+            }
           />
         </Route>
 
         {/* Unknown Route */}
+
         <Route
           path="*"
           element={
@@ -374,6 +529,7 @@ function AppRoutes() {
             />
           }
         />
+
       </Routes>
     </BrowserRouter>
   );

@@ -1,5 +1,38 @@
 import databasePool from "../config/database.js";
 
+function formatDate(
+  value
+) {
+  if (!value) {
+    return "";
+  }
+
+  if (value instanceof Date) {
+    return value
+      .toISOString()
+      .slice(0, 10);
+  }
+
+  return String(value).slice(
+    0,
+    10
+  );
+}
+
+function formatDateTime(
+  value
+) {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  return String(value);
+}
+
 function mapVerification(
   row
 ) {
@@ -44,16 +77,135 @@ function mapVerification(
       row.status,
 
     issuedAt:
-      row.issued_at ||
-      null,
+      formatDateTime(
+        row.issued_at
+      ),
 
     supersededAt:
-      row.superseded_at ||
-      null,
+      formatDateTime(
+        row.superseded_at
+      ),
 
     revokedAt:
-      row.revoked_at ||
-      null,
+      formatDateTime(
+        row.revoked_at
+      ),
+  };
+}
+
+function mapPublicVerification(
+  row
+) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    verificationId:
+      String(
+        row.verification_id
+      ),
+
+    offerId:
+      String(
+        row.offer_id
+      ),
+
+    publicId:
+      row.verification_public_id,
+
+    tokenHash:
+      row.verification_token_hash,
+
+    verificationStatus:
+      row.verification_status,
+
+    documentVersion:
+      Number(
+        row.document_version ||
+        0
+      ),
+
+    documentOriginalName:
+      row.document_original_name ||
+      "",
+
+    documentSizeBytes:
+      Number(
+        row.document_size_bytes ||
+        0
+      ),
+
+    issuedAt:
+      formatDateTime(
+        row.issued_at
+      ),
+
+    supersededAt:
+      formatDateTime(
+        row.superseded_at
+      ),
+
+    revokedAt:
+      formatDateTime(
+        row.revoked_at
+      ),
+
+    offerStatus:
+      row.effective_offer_status ||
+      row.offer_status ||
+      "",
+
+    designation:
+      row.designation ||
+      "",
+
+    offerExpiryDate:
+      formatDate(
+        row.offer_expiry_date
+      ),
+
+    joiningDate:
+      formatDate(
+        row.joining_date
+      ),
+
+    sentAt:
+      formatDateTime(
+        row.sent_at
+      ),
+
+    respondedAt:
+      formatDateTime(
+        row.responded_at
+      ),
+
+    acceptedAt:
+      formatDateTime(
+        row.accepted_at
+      ),
+
+    declinedAt:
+      formatDateTime(
+        row.declined_at
+      ),
+
+    withdrawnAt:
+      formatDateTime(
+        row.withdrawn_at
+      ),
+
+    candidateName:
+      row.candidate_name ||
+      "",
+
+    companyName:
+      row.company_name ||
+      "",
+
+    jobTitle:
+      row.job_title ||
+      "",
   };
 }
 
@@ -133,16 +285,141 @@ export async function findActiveOfferVerification(
   );
 }
 
-/*
-|--------------------------------------------------------------------------
-| Save generated PDF and verification atomically
-|--------------------------------------------------------------------------
-|
-| The offer-letter metadata and the verification record are committed in
-| the same transaction. This prevents a generated PDF from being attached
-| to an offer without its matching verification hash.
-|
-*/
+export async function findPublicOfferVerification(
+  verificationPublicId
+) {
+  const [rows] =
+    await databasePool.execute(
+      `
+        SELECT
+          verification.verification_id,
+          verification.offer_id,
+          verification.verification_public_id,
+          verification.verification_token_hash,
+
+          verification.status
+            AS verification_status,
+
+          verification.document_version,
+          verification.document_original_name,
+          verification.document_size_bytes,
+          verification.issued_at,
+          verification.superseded_at,
+          verification.revoked_at,
+
+          offer.status
+            AS offer_status,
+
+          CASE
+            WHEN
+              offer.status = 'sent'
+
+              AND offer.offer_expiry_date
+                  < CURRENT_DATE
+
+            THEN 'expired'
+
+            ELSE offer.status
+          END
+            AS effective_offer_status,
+
+          offer.designation,
+          offer.offer_expiry_date,
+          offer.joining_date,
+          offer.sent_at,
+          offer.responded_at,
+          offer.accepted_at,
+          offer.declined_at,
+          offer.withdrawn_at,
+
+          student.full_name
+            AS candidate_name,
+
+          company.company_name,
+
+          job.job_title
+
+        FROM offer_verifications
+          AS verification
+
+        INNER JOIN job_offers
+          AS offer
+          ON offer.offer_id =
+             verification.offer_id
+
+        INNER JOIN users
+          AS student
+          ON student.user_id =
+             offer.student_user_id
+
+        INNER JOIN recruiter_jobs
+          AS job
+          ON job.job_id =
+             offer.job_id
+
+        LEFT JOIN recruiter_company_profiles
+          AS company
+          ON company.user_id =
+             offer.recruiter_user_id
+
+        WHERE
+          verification.verification_public_id = ?
+
+        LIMIT 1
+      `,
+      [
+        verificationPublicId,
+      ]
+    );
+
+  return mapPublicVerification(
+    rows[0]
+  );
+}
+
+export async function createOfferVerificationCheck({
+  verificationId = null,
+  submittedTokenHash,
+  submittedDocumentSha256 = null,
+  verificationMode = "qr",
+  result,
+  clientIpHash = null,
+  userAgentHash = null,
+}) {
+  const [insertResult] =
+    await databasePool.execute(
+      `
+        INSERT INTO offer_verification_checks (
+          verification_id,
+          submitted_token_hash,
+          submitted_document_sha256,
+          verification_mode,
+          result,
+          client_ip_hash,
+          user_agent_hash
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        verificationId,
+        submittedTokenHash,
+        submittedDocumentSha256,
+        verificationMode,
+        result,
+        clientIpHash,
+        userAgentHash,
+      ]
+    );
+
+  return {
+    verificationCheckId:
+      String(
+        insertResult.insertId
+      ),
+
+    result,
+  };
+}
 
 export async function saveGeneratedOfferWithVerification({
   recruiterUserId,
@@ -251,12 +528,6 @@ export async function saveGeneratedOfferWithVerification({
         1
       );
 
-    /*
-    |--------------------------------------------------------------------------
-    | Supersede previous active version
-    |--------------------------------------------------------------------------
-    */
-
     await connection.execute(
       `
         UPDATE offer_verifications
@@ -275,12 +546,6 @@ export async function saveGeneratedOfferWithVerification({
         offerId,
       ]
     );
-
-    /*
-    |--------------------------------------------------------------------------
-    | Store the generated offer-letter metadata
-    |--------------------------------------------------------------------------
-    */
 
     await connection.execute(
       `
@@ -308,12 +573,6 @@ export async function saveGeneratedOfferWithVerification({
         recruiterUserId,
       ]
     );
-
-    /*
-    |--------------------------------------------------------------------------
-    | Create the new active verification version
-    |--------------------------------------------------------------------------
-    */
 
     const [insertResult] =
       await connection.execute(

@@ -8,10 +8,14 @@ import {
 } from "url";
 
 const currentFilePath =
-  fileURLToPath(import.meta.url);
+  fileURLToPath(
+    import.meta.url
+  );
 
 const currentDirectory =
-  path.dirname(currentFilePath);
+  path.dirname(
+    currentFilePath
+  );
 
 const environmentResult =
   dotenv.config({
@@ -21,10 +25,14 @@ const environmentResult =
     ),
   });
 
-if (environmentResult.error) {
+if (
+  environmentResult.error
+) {
   console.error(
     "Unable to load server/.env:",
-    environmentResult.error.message
+    environmentResult
+      .error
+      .message
   );
 
   process.exit(1);
@@ -38,6 +46,11 @@ const [
   {
     default:
       authRoutes,
+  },
+
+  {
+    default:
+      publicOfferVerificationRoutes,
   },
 
   {
@@ -104,6 +117,10 @@ const [
   ),
 
   import(
+    "./src/routes/publicOfferVerificationRoutes.js"
+  ),
+
+  import(
     "./src/routes/adminRoutes.js"
   ),
 
@@ -148,7 +165,8 @@ const [
   ),
 ]);
 
-const app = express();
+const app =
+  express();
 
 const PORT =
   Number(
@@ -159,21 +177,121 @@ const CLIENT_URL =
   process.env.CLIENT_URL ||
   "http://localhost:5173";
 
+const PUBLIC_APP_URL =
+  process.env.PUBLIC_APP_URL ||
+  CLIENT_URL;
+
+/*
+|--------------------------------------------------------------------------
+| Allowed frontend origins
+|--------------------------------------------------------------------------
+|
+| localhost is kept for normal laptop development.
+| CLIENT_URL and PUBLIC_APP_URL allow CampusTE to be accessed using the
+| laptop Wi-Fi IP address from other devices on the same network.
+|
+*/
+
+const allowedOrigins =
+  Array.from(
+    new Set(
+      [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        CLIENT_URL,
+        PUBLIC_APP_URL,
+      ].filter(
+        Boolean
+      )
+    )
+  );
+
+console.log(
+  "CampusTE allowed frontend origins:",
+  allowedOrigins
+);
+
+/*
+|--------------------------------------------------------------------------
+| CORS
+|--------------------------------------------------------------------------
+*/
+
 app.use(
   cors({
-    origin:
-      CLIENT_URL,
+    origin: (
+      origin,
+      callback
+    ) => {
+      /*
+      |--------------------------------------------------------------------------
+      | Requests without Origin
+      |--------------------------------------------------------------------------
+      |
+      | Allows tools such as PowerShell, Postman and direct server requests.
+      |
+      */
+
+      if (!origin) {
+        return callback(
+          null,
+          true
+        );
+      }
+
+      if (
+        allowedOrigins.includes(
+          origin
+        )
+      ) {
+        return callback(
+          null,
+          true
+        );
+      }
+
+      console.warn(
+        `CORS blocked origin: ${origin}`
+      );
+
+      return callback(
+        new Error(
+          `CORS blocked origin: ${origin}`
+        )
+      );
+    },
 
     credentials:
       true,
+
+    methods: [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS",
+    ],
+
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+    ],
   })
 );
 
 app.use(
   express.json({
-    limit: "2mb",
+    limit:
+      "2mb",
   })
 );
+
+/*
+|--------------------------------------------------------------------------
+| Root route
+|--------------------------------------------------------------------------
+*/
 
 app.get(
   "/",
@@ -184,13 +302,20 @@ app.get(
     return response
       .status(200)
       .json({
-        success: true,
+        success:
+          true,
 
         message:
           "CampusTE backend server is running",
       });
   }
 );
+
+/*
+|--------------------------------------------------------------------------
+| Health route
+|--------------------------------------------------------------------------
+*/
 
 app.get(
   "/api/health",
@@ -205,14 +330,18 @@ app.get(
       return response
         .status(200)
         .json({
-          success: true,
-          status: "healthy",
+          success:
+            true,
+
+          status:
+            "healthy",
 
           message:
             "CampusTE API and database are working",
 
           database: {
-            connected: true,
+            connected:
+              true,
 
             name:
               databaseStatus
@@ -221,6 +350,16 @@ app.get(
             serverTime:
               databaseStatus
                 .serverTime,
+          },
+
+          server: {
+            port:
+              PORT,
+
+            publicAppUrl:
+              PUBLIC_APP_URL,
+
+            allowedOrigins,
           },
 
           timestamp:
@@ -236,29 +375,67 @@ app.get(
       return response
         .status(503)
         .json({
-          success: false,
-          status: "unhealthy",
+          success:
+            false,
+
+          status:
+            "unhealthy",
 
           message:
             "Database connection failed",
 
           database: {
-            connected: false,
+            connected:
+              false,
           },
         });
     }
   }
 );
 
+/*
+|--------------------------------------------------------------------------
+| Authentication routes
+|--------------------------------------------------------------------------
+*/
+
 app.use(
   "/api/auth",
   authRoutes
 );
 
+/*
+|--------------------------------------------------------------------------
+| Public routes
+|--------------------------------------------------------------------------
+|
+| Must remain before routers mounted directly on "/api".
+|
+| GET /api/public/offer-verifications/:publicId?token=...
+|
+*/
+
+app.use(
+  "/api/public",
+  publicOfferVerificationRoutes
+);
+
+/*
+|--------------------------------------------------------------------------
+| Admin routes
+|--------------------------------------------------------------------------
+*/
+
 app.use(
   "/api/admin",
   adminRoutes
 );
+
+/*
+|--------------------------------------------------------------------------
+| Student routes
+|--------------------------------------------------------------------------
+*/
 
 app.use(
   "/api/student",
@@ -280,6 +457,12 @@ app.use(
   studentInterviewRoutes
 );
 
+/*
+|--------------------------------------------------------------------------
+| Recruiter routes
+|--------------------------------------------------------------------------
+*/
+
 app.use(
   "/api/recruiter",
   recruiterCompanyProfileRoutes
@@ -300,6 +483,12 @@ app.use(
   recruiterInterviewRoutes
 );
 
+/*
+|--------------------------------------------------------------------------
+| Shared authenticated API routes
+|--------------------------------------------------------------------------
+*/
+
 app.use(
   "/api",
   notificationRoutes
@@ -310,6 +499,12 @@ app.use(
   offerRoutes
 );
 
+/*
+|--------------------------------------------------------------------------
+| API not-found handler
+|--------------------------------------------------------------------------
+*/
+
 app.use(
   (
     request,
@@ -318,13 +513,70 @@ app.use(
     return response
       .status(404)
       .json({
-        success: false,
+        success:
+          false,
 
         message:
           "API route not found",
       });
   }
 );
+
+/*
+|--------------------------------------------------------------------------
+| Error handler
+|--------------------------------------------------------------------------
+|
+| This also gives a clearer response if CORS rejects an origin.
+|
+*/
+
+app.use(
+  (
+    error,
+    request,
+    response,
+    next
+  ) => {
+    console.error(
+      "CampusTE server error:",
+      error.message
+    );
+
+    if (
+      error.message
+        ?.startsWith(
+          "CORS blocked origin:"
+        )
+    ) {
+      return response
+        .status(403)
+        .json({
+          success:
+            false,
+
+          message:
+            "This frontend origin is not allowed to access the CampusTE backend.",
+        });
+    }
+
+    return response
+      .status(500)
+      .json({
+        success:
+          false,
+
+        message:
+          "An unexpected server error occurred.",
+      });
+  }
+);
+
+/*
+|--------------------------------------------------------------------------
+| Start server
+|--------------------------------------------------------------------------
+*/
 
 async function startServer() {
   try {
@@ -337,9 +589,18 @@ async function startServer() {
 
     app.listen(
       PORT,
+      "0.0.0.0",
       () => {
         console.log(
-          `CampusTE backend running at http://localhost:${PORT}`
+          `CampusTE backend running locally at http://localhost:${PORT}`
+        );
+
+        console.log(
+          `CampusTE backend network access enabled on port ${PORT}`
+        );
+
+        console.log(
+          `CampusTE public frontend URL: ${PUBLIC_APP_URL}`
         );
       }
     );
