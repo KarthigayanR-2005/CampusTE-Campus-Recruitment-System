@@ -1,12 +1,7 @@
 import {
+  API_BASE_URL,
   apiRequest,
-} from "./apiClient";
-
-const API_BASE_URL = (
-  import.meta.env
-    .VITE_API_BASE_URL ||
-  "http://localhost:5000/api"
-).replace(/\/$/, "");
+} from "./apiClient.js";
 
 export const
   PROFILE_DATA_CHANGED_EVENT =
@@ -67,7 +62,9 @@ export function getStudentDashboardRequest({
   return apiRequest(
     "/student/dashboard",
     {
-      method: "GET",
+      method:
+        "GET",
+
       token,
     }
   );
@@ -85,7 +82,9 @@ export function getStudentProfileRequest({
   return apiRequest(
     "/student/profile",
     {
-      method: "GET",
+      method:
+        "GET",
+
       token,
     }
   );
@@ -99,9 +98,13 @@ export async function updateStudentProfileRequest({
     await apiRequest(
       "/student/profile",
       {
-        method: "PUT",
+        method:
+          "PUT",
+
         token,
-        body: profile,
+
+        body:
+          profile,
       }
     );
 
@@ -116,7 +119,9 @@ export function getStudentProfileCompletionRequest({
   return apiRequest(
     "/student/profile-completion",
     {
-      method: "GET",
+      method:
+        "GET",
+
       token,
     }
   );
@@ -134,7 +139,9 @@ export function getStudentSkillsRequest({
   return apiRequest(
     "/student/skills",
     {
-      method: "GET",
+      method:
+        "GET",
+
       token,
     }
   );
@@ -148,9 +155,13 @@ export async function createStudentSkillRequest({
     await apiRequest(
       "/student/skills",
       {
-        method: "POST",
+        method:
+          "POST",
+
         token,
-        body: skill,
+
+        body:
+          skill,
       }
     );
 
@@ -168,9 +179,13 @@ export async function updateStudentSkillRequest({
     await apiRequest(
       `/student/skills/${skillId}`,
       {
-        method: "PUT",
+        method:
+          "PUT",
+
         token,
-        body: skill,
+
+        body:
+          skill,
       }
     );
 
@@ -187,7 +202,9 @@ export async function deleteStudentSkillRequest({
     await apiRequest(
       `/student/skills/${skillId}`,
       {
-        method: "DELETE",
+        method:
+          "DELETE",
+
         token,
       }
     );
@@ -209,7 +226,9 @@ export function getStudentProjectsRequest({
   return apiRequest(
     "/student/projects",
     {
-      method: "GET",
+      method:
+        "GET",
+
       token,
     }
   );
@@ -223,9 +242,13 @@ export async function createStudentProjectRequest({
     await apiRequest(
       "/student/projects",
       {
-        method: "POST",
+        method:
+          "POST",
+
         token,
-        body: project,
+
+        body:
+          project,
       }
     );
 
@@ -243,9 +266,13 @@ export async function updateStudentProjectRequest({
     await apiRequest(
       `/student/projects/${projectId}`,
       {
-        method: "PUT",
+        method:
+          "PUT",
+
         token,
-        body: project,
+
+        body:
+          project,
       }
     );
 
@@ -262,7 +289,9 @@ export async function deleteStudentProjectRequest({
     await apiRequest(
       `/student/projects/${projectId}`,
       {
-        method: "DELETE",
+        method:
+          "DELETE",
+
         token,
       }
     );
@@ -284,7 +313,9 @@ export function getStudentCertificationsRequest({
   return apiRequest(
     "/student/certifications",
     {
-      method: "GET",
+      method:
+        "GET",
+
       token,
     }
   );
@@ -298,9 +329,13 @@ export async function createStudentCertificationRequest({
     await apiRequest(
       "/student/certifications",
       {
-        method: "POST",
+        method:
+          "POST",
+
         token,
-        body: certification,
+
+        body:
+          certification,
       }
     );
 
@@ -318,9 +353,13 @@ export async function updateStudentCertificationRequest({
     await apiRequest(
       `/student/certifications/${certificationId}`,
       {
-        method: "PUT",
+        method:
+          "PUT",
+
         token,
-        body: certification,
+
+        body:
+          certification,
       }
     );
 
@@ -337,7 +376,9 @@ export async function deleteStudentCertificationRequest({
     await apiRequest(
       `/student/certifications/${certificationId}`,
       {
-        method: "DELETE",
+        method:
+          "DELETE",
+
         token,
       }
     );
@@ -359,7 +400,9 @@ export function getStudentExperiencesRequest({
   return apiRequest(
     "/student/experiences",
     {
-      method: "GET",
+      method:
+        "GET",
+
       token,
     }
   );
@@ -373,9 +416,13 @@ export async function createStudentExperienceRequest({
     await apiRequest(
       "/student/experiences",
       {
-        method: "POST",
+        method:
+          "POST",
+
         token,
-        body: experience,
+
+        body:
+          experience,
       }
     );
 
@@ -393,9 +440,13 @@ export async function updateStudentExperienceRequest({
     await apiRequest(
       `/student/experiences/${experienceId}`,
       {
-        method: "PUT",
+        method:
+          "PUT",
+
         token,
-        body: experience,
+
+        body:
+          experience,
       }
     );
 
@@ -412,7 +463,9 @@ export async function deleteStudentExperienceRequest({
     await apiRequest(
       `/student/experiences/${experienceId}`,
       {
-        method: "DELETE",
+        method:
+          "DELETE",
+
         token,
       }
     );
@@ -434,7 +487,9 @@ export function getStudentResumeRequest({
   return apiRequest(
     "/student/resume",
     {
-      method: "GET",
+      method:
+        "GET",
+
       token,
     }
   );
@@ -453,53 +508,53 @@ export async function uploadStudentResumeRequest({
   );
 
   const response =
-    await fetch(
-      `${API_BASE_URL}/student/resume`,
+    await apiRequest(
+      "/student/resume",
       {
-        method: "POST",
+        method:
+          "POST",
 
-        headers: {
-          Authorization:
-            `Bearer ${token}`,
-        },
+        token,
 
-        body: formData,
+        body:
+          formData,
       }
     );
 
-  if (!response.ok) {
-    return throwResponseError(
-      response,
-      "Unable to upload the resume."
-    );
-  }
-
-  const responseData =
-    await response.json();
-
   notifyProfileDataChanged();
 
-  return responseData;
+  return response;
 }
 
 export async function getStudentResumeFileRequest({
   token,
   download = false,
 }) {
-  const response =
-    await fetch(
-      `${API_BASE_URL}/student/resume/file?download=${
-        download ? "1" : "0"
-      }`,
-      {
-        method: "GET",
+  let response;
 
-        headers: {
-          Authorization:
-            `Bearer ${token}`,
-        },
-      }
+  try {
+    response =
+      await fetch(
+        `${API_BASE_URL}/student/resume/file?download=${
+          download
+            ? "1"
+            : "0"
+        }`,
+        {
+          method:
+            "GET",
+
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+        }
+      );
+  } catch {
+    throw new Error(
+      "Unable to connect to the CampusTE server. Check whether the backend is running."
     );
+  }
 
   if (!response.ok) {
     return throwResponseError(
@@ -518,7 +573,9 @@ export async function deleteStudentResumeRequest({
     await apiRequest(
       "/student/resume",
       {
-        method: "DELETE",
+        method:
+          "DELETE",
+
         token,
       }
     );
@@ -568,7 +625,9 @@ export function getStudentInterviewsRequest({
         : ""
     }`,
     {
-      method: "GET",
+      method:
+        "GET",
+
       token,
     }
   );
@@ -581,7 +640,9 @@ export function getStudentInterviewRequest({
   return apiRequest(
     `/student/interviews/${applicationId}`,
     {
-      method: "GET",
+      method:
+        "GET",
+
       token,
     }
   );

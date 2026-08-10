@@ -1,15 +1,14 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  "http://localhost:5000/api";
+import {
+  API_BASE_URL,
+  apiRequest,
+} from "./apiClient";
 
-function createHeaders({
+function createBlobHeaders({
   token,
-  body,
-  additionalHeaders = {},
-}) {
+} = {}) {
   const headers = {
-    Accept: "application/json",
-    ...additionalHeaders,
+    Accept:
+      "application/octet-stream",
   };
 
   if (token) {
@@ -17,25 +16,12 @@ function createHeaders({
       `Bearer ${token}`;
   }
 
-  if (
-    body !== undefined &&
-    body !== null &&
-    !(body instanceof FormData)
-  ) {
-    headers["Content-Type"] =
-      "application/json";
-  }
-
   return headers;
 }
 
-async function readResponse(
+async function readBlobErrorResponse(
   response
 ) {
-  if (response.status === 204) {
-    return null;
-  }
-
   const contentType =
     response.headers.get(
       "content-type"
@@ -46,75 +32,26 @@ async function readResponse(
       "application/json"
     )
   ) {
-    return response.json();
+    try {
+      return await response.json();
+    } catch {
+      return null;
+    }
   }
 
-  const text =
-    await response.text();
+  try {
+    const text =
+      await response.text();
 
-  return text
-    ? {
-        message: text,
-      }
-    : null;
-}
-
-async function apiRequest(
-  endpoint,
-  {
-    method = "GET",
-    token,
-    body,
-    headers = {},
-  } = {}
-) {
-  const response =
-    await fetch(
-      `${API_BASE_URL}${endpoint}`,
-      {
-        method,
-
-        headers: createHeaders({
-          token,
-          body,
-          additionalHeaders:
-            headers,
-        }),
-
-        body:
-          body === undefined ||
-          body === null
-            ? undefined
-            : body instanceof FormData
-              ? body
-              : JSON.stringify(
-                  body
-                ),
-      }
-    );
-
-  const responseData =
-    await readResponse(
-      response
-    );
-
-  if (!response.ok) {
-    const error =
-      new Error(
-        responseData?.message ||
-          "The request could not be completed."
-      );
-
-    error.status =
-      response.status;
-
-    error.data =
-      responseData;
-
-    throw error;
+    return text
+      ? {
+          message:
+            text,
+        }
+      : null;
+  } catch {
+    return null;
   }
-
-  return responseData;
 }
 
 async function blobRequest(
@@ -123,22 +60,31 @@ async function blobRequest(
     token,
   } = {}
 ) {
-  const response =
-    await fetch(
-      `${API_BASE_URL}${endpoint}`,
-      {
-        method: "GET",
+  let response;
 
-        headers:
-          createHeaders({
-            token,
-          }),
-      }
+  try {
+    response =
+      await fetch(
+        `${API_BASE_URL}${endpoint}`,
+        {
+          method:
+            "GET",
+
+          headers:
+            createBlobHeaders({
+              token,
+            }),
+        }
+      );
+  } catch {
+    throw new Error(
+      "Unable to connect to the CampusTE server. Check whether the backend is running."
     );
+  }
 
   if (!response.ok) {
     const responseData =
-      await readResponse(
+      await readBlobErrorResponse(
         response
       );
 

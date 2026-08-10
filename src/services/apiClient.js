@@ -1,6 +1,36 @@
+function getApiBaseUrl() {
+  const configuredUrl =
+    import.meta.env
+      .VITE_API_BASE_URL;
+
+  /*
+  |--------------------------------------------------------------------------
+  | Development
+  |--------------------------------------------------------------------------
+  |
+  | localhost:5173  -> localhost:5000
+  | 10.x.x.x:5173   -> same 10.x.x.x:5000
+  |
+  | This allows both laptop development and phone QR verification without
+  | repeatedly editing VITE_API_BASE_URL.
+  |
+  */
+
+  if (import.meta.env.DEV) {
+    const hostname =
+      window.location.hostname;
+
+    return `http://${hostname}:5000/api`;
+  }
+
+  return (
+    configuredUrl ||
+    "/api"
+  );
+}
+
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  "http://localhost:5000/api";
+  getApiBaseUrl();
 
 export async function apiRequest(
   endpoint,
@@ -15,8 +45,16 @@ export async function apiRequest(
     ...headers,
   };
 
-  if (body !== undefined) {
-    requestHeaders["Content-Type"] =
+  const isFormData =
+    body instanceof FormData;
+
+  if (
+    body !== undefined &&
+    !isFormData
+  ) {
+    requestHeaders[
+      "Content-Type"
+    ] =
       "application/json";
   }
 
@@ -28,17 +66,25 @@ export async function apiRequest(
   let response;
 
   try {
-    response = await fetch(
-      `${API_BASE_URL}${endpoint}`,
-      {
-        method,
-        headers: requestHeaders,
-        body:
-          body !== undefined
-            ? JSON.stringify(body)
-            : undefined,
-      }
-    );
+    response =
+      await fetch(
+        `${API_BASE_URL}${endpoint}`,
+        {
+          method,
+
+          headers:
+            requestHeaders,
+
+          body:
+            body === undefined
+              ? undefined
+              : isFormData
+                ? body
+                : JSON.stringify(
+                    body
+                  ),
+        }
+      );
   } catch {
     throw new Error(
       "Unable to connect to the CampusTE server. Check whether the backend is running."
@@ -48,23 +94,29 @@ export async function apiRequest(
   let responseData;
 
   try {
-    responseData = await response.json();
+    responseData =
+      await response.json();
   } catch {
     responseData = {
       success: false,
+
       message:
         "The server returned an invalid response.",
     };
   }
 
   if (!response.ok) {
-    const requestError = new Error(
-      responseData.message ||
+    const requestError =
+      new Error(
+        responseData.message ||
         "The request could not be completed."
-    );
+      );
 
-    requestError.status = response.status;
-    requestError.data = responseData;
+    requestError.status =
+      response.status;
+
+    requestError.data =
+      responseData;
 
     throw requestError;
   }
@@ -72,4 +124,6 @@ export async function apiRequest(
   return responseData;
 }
 
-export { API_BASE_URL };
+export {
+  API_BASE_URL,
+};

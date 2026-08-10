@@ -14,7 +14,7 @@ import {
 } from "../models/recruiterCompanyProfileModel.js";
 
 import {
-  findActiveOfferVerification,
+  findNextOfferVerificationVersion,
   revokeActiveOfferVerification,
   saveGeneratedOfferWithVerification,
 } from "../models/offerVerificationModel.js";
@@ -31,6 +31,7 @@ import {
   calculateFileSha256,
   createOfferVerificationCredentials,
   createVerificationQrBuffer,
+  signDocumentSha256,
 } from "../services/offerVerificationService.js";
 
 const offerLetterDirectory =
@@ -47,9 +48,7 @@ const companyBrandingDirectory =
     "company-branding"
   );
 
-function parsePositiveId(
-  value
-) {
+function parsePositiveId(value) {
   const parsedValue =
     Number(value);
 
@@ -249,7 +248,8 @@ async function safelyDeleteFile(
     );
   } catch (error) {
     if (
-      error.code !== "ENOENT"
+      error.code !==
+      "ENOENT"
     ) {
       console.error(
         "Offer letter deletion error:",
@@ -320,7 +320,9 @@ function getRelativeUploadedPath(
       process.cwd(),
       request.file.path
     )
-    .split(path.sep)
+    .split(
+      path.sep
+    )
     .join("/");
 }
 
@@ -368,7 +370,8 @@ async function sendOfferLetter({
       : "inline";
 
   const originalFileName =
-    offerLetter.originalFileName ||
+    offerLetter
+      .originalFileName ||
     "Offer_Letter.pdf";
 
   const safeFileName =
@@ -402,7 +405,9 @@ export async function uploadRecruiterOfferLetter(
   request,
   response
 ) {
-  if (!request.file) {
+  if (
+    !request.file
+  ) {
     return response
       .status(400)
       .json({
@@ -420,7 +425,8 @@ export async function uploadRecruiterOfferLetter(
 
   const offerId =
     parsePositiveId(
-      request.params.offerId
+      request.params
+        .offerId
     );
 
   if (!offerId) {
@@ -462,21 +468,26 @@ export async function uploadRecruiterOfferLetter(
     const result =
       await saveRecruiterOfferLetter({
         recruiterUserId:
-          request.auth.userId,
+          request.auth
+            .userId,
 
         offerId,
 
         originalFileName:
-          request.file.originalname,
+          request.file
+            .originalname,
 
         storedFileName:
-          request.file.filename,
+          request.file
+            .filename,
 
         mimeType:
-          request.file.mimetype,
+          request.file
+            .mimetype,
 
         sizeBytes:
-          request.file.size,
+          request.file
+            .size,
 
         filePath:
           relativeFilePath,
@@ -528,9 +539,21 @@ export async function uploadRecruiterOfferLetter(
       );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Manual upload verification handling
+    |--------------------------------------------------------------------------
+    |
+    | A manually uploaded PDF is not the CampusTE-generated signed PDF.
+    | Therefore, any previously active generated verification record is
+    | revoked when the Recruiter manually replaces the document.
+    |
+    */
+
     await safelyRevokeVerification({
       recruiterUserId:
-        request.auth.userId,
+        request.auth
+          .userId,
 
       offerId,
     });
@@ -579,7 +602,8 @@ export async function generateRecruiterOfferLetter(
 ) {
   const offerId =
     parsePositiveId(
-      request.params.offerId
+      request.params
+        .offerId
     );
 
   if (!offerId) {
@@ -600,7 +624,8 @@ export async function generateRecruiterOfferLetter(
     const offer =
       await findRecruiterOfferById({
         recruiterUserId:
-          request.auth.userId,
+          request.auth
+            .userId,
 
         offerId,
       });
@@ -630,20 +655,28 @@ export async function generateRecruiterOfferLetter(
         });
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Load branding and determine the exact next verification version
+    |--------------------------------------------------------------------------
+    */
+
     const [
       companyProfile,
       companyLogo,
       authorizedSignature,
-      activeVerification,
+      documentVersion,
     ] =
       await Promise.all([
         findRecruiterCompanyProfile(
-          request.auth.userId
+          request.auth
+            .userId
         ),
 
         getCompanyBrandingAsset({
           recruiterUserId:
-            request.auth.userId,
+            request.auth
+              .userId,
 
           fileType:
             "logo",
@@ -651,13 +684,14 @@ export async function generateRecruiterOfferLetter(
 
         getCompanyBrandingAsset({
           recruiterUserId:
-            request.auth.userId,
+            request.auth
+              .userId,
 
           fileType:
             "signature",
         }),
 
-        findActiveOfferVerification(
+        findNextOfferVerificationVersion(
           offerId
         ),
       ]);
@@ -668,17 +702,16 @@ export async function generateRecruiterOfferLetter(
         companyProfile,
       });
 
+    /*
+    |--------------------------------------------------------------------------
+    | Generate secure QR credentials
+    |--------------------------------------------------------------------------
+    */
+
     const verificationCredentials =
       createOfferVerificationCredentials({
         offerId,
       });
-
-    const documentVersion =
-      Number(
-        activeVerification
-          ?.documentVersion ||
-        0
-      ) + 1;
 
     const qrCodeBuffer =
       await createVerificationQrBuffer(
@@ -691,6 +724,12 @@ export async function generateRecruiterOfferLetter(
         verificationCredentials
           .verificationUrl
       );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Generate the completed offer-letter PDF
+    |--------------------------------------------------------------------------
+    */
 
     generatedFile =
       await generateOfferLetterPdf({
@@ -723,16 +762,40 @@ export async function generateRecruiterOfferLetter(
         },
       });
 
+    /*
+    |--------------------------------------------------------------------------
+    | Generate SHA-256 document fingerprint
+    |--------------------------------------------------------------------------
+    */
+
     const documentSha256 =
       await calculateFileSha256(
         generatedFile
           .absoluteFilePath
       );
 
+    /*
+    |--------------------------------------------------------------------------
+    | Digitally sign the SHA-256 fingerprint using Ed25519
+    |--------------------------------------------------------------------------
+    */
+
+    const digitalSignature =
+      await signDocumentSha256(
+        documentSha256
+      );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Save PDF metadata + cryptographic verification record atomically
+    |--------------------------------------------------------------------------
+    */
+
     const result =
       await saveGeneratedOfferWithVerification({
         recruiterUserId:
-          request.auth.userId,
+          request.auth
+            .userId,
 
         offerId,
 
@@ -768,6 +831,20 @@ export async function generateRecruiterOfferLetter(
               .verificationTokenHash,
 
           documentSha256,
+
+          signatureAlgorithm:
+            digitalSignature
+              .algorithm,
+
+          documentSignatureBase64:
+            digitalSignature
+              .signatureBase64,
+
+          signingKeyId:
+            digitalSignature
+              .signingKeyId,
+
+          documentVersion,
         },
       });
 
@@ -776,7 +853,8 @@ export async function generateRecruiterOfferLetter(
       "not_found"
     ) {
       await safelyDeleteFile(
-        generatedFile.filePath
+        generatedFile
+          .filePath
       );
 
       return response
@@ -794,7 +872,8 @@ export async function generateRecruiterOfferLetter(
       "invalid_status"
     ) {
       await safelyDeleteFile(
-        generatedFile.filePath
+        generatedFile
+          .filePath
       );
 
       return response
@@ -808,9 +887,29 @@ export async function generateRecruiterOfferLetter(
     }
 
     if (
+      result.result ===
+      "version_conflict"
+    ) {
+      await safelyDeleteFile(
+        generatedFile
+          .filePath
+      );
+
+      return response
+        .status(409)
+        .json({
+          success: false,
+
+          message:
+            "Another offer-letter version was generated at the same time. Please regenerate the document.",
+        });
+    }
+
+    if (
       result.previousFilePath &&
       result.previousFilePath !==
-        generatedFile.filePath
+        generatedFile
+          .filePath
     ) {
       await safelyDeleteFile(
         result.previousFilePath
@@ -828,11 +927,12 @@ export async function generateRecruiterOfferLetter(
 
         message:
           result.previousFilePath
-            ? "Verified offer letter regenerated successfully."
-            : "Verified offer letter generated successfully.",
+            ? "Verified and digitally signed offer letter regenerated successfully."
+            : "Verified and digitally signed offer letter generated successfully.",
 
         offerLetter: {
-          available: true,
+          available:
+            true,
 
           originalFileName:
             generatedFile
@@ -869,6 +969,18 @@ export async function generateRecruiterOfferLetter(
             result.verification
               ?.issuedAt ||
             null,
+
+          signatureAlgorithm:
+            result.verification
+              ?.signatureAlgorithm ||
+            digitalSignature
+              .algorithm,
+
+          signingKeyId:
+            result.verification
+              ?.signingKeyId ||
+            digitalSignature
+              .signingKeyId,
         },
       });
   } catch (error) {
@@ -882,7 +994,8 @@ export async function generateRecruiterOfferLetter(
         ?.filePath
     ) {
       await safelyDeleteFile(
-        generatedFile.filePath
+        generatedFile
+          .filePath
       );
     }
 
@@ -892,7 +1005,7 @@ export async function generateRecruiterOfferLetter(
         success: false,
 
         message:
-          "Unable to generate the verified offer-letter PDF.",
+          "Unable to generate the verified and digitally signed offer-letter PDF.",
       });
   }
 }
@@ -904,7 +1017,8 @@ export async function getRecruiterOfferLetterFile(
   try {
     const offerId =
       parsePositiveId(
-        request.params.offerId
+        request.params
+          .offerId
       );
 
     if (!offerId) {
@@ -921,7 +1035,8 @@ export async function getRecruiterOfferLetterFile(
     const offerLetter =
       await findRecruiterOfferLetter({
         recruiterUserId:
-          request.auth.userId,
+          request.auth
+            .userId,
 
         offerId,
       });
@@ -942,7 +1057,8 @@ export async function getRecruiterOfferLetterFile(
       offerLetter,
 
       download:
-        request.query.download ===
+        request.query
+          .download ===
         "1",
     });
   } catch (error) {
@@ -969,7 +1085,8 @@ export async function deleteRecruiterOfferLetter(
   try {
     const offerId =
       parsePositiveId(
-        request.params.offerId
+        request.params
+          .offerId
       );
 
     if (!offerId) {
@@ -986,7 +1103,8 @@ export async function deleteRecruiterOfferLetter(
     const result =
       await clearRecruiterOfferLetter({
         recruiterUserId:
-          request.auth.userId,
+          request.auth
+            .userId,
 
         offerId,
       });
@@ -1039,7 +1157,8 @@ export async function deleteRecruiterOfferLetter(
 
     await safelyRevokeVerification({
       recruiterUserId:
-        request.auth.userId,
+        request.auth
+          .userId,
 
       offerId,
     });
@@ -1076,7 +1195,8 @@ export async function getStudentOfferLetterFile(
   try {
     const offerId =
       parsePositiveId(
-        request.params.offerId
+        request.params
+          .offerId
       );
 
     if (!offerId) {
@@ -1093,7 +1213,8 @@ export async function getStudentOfferLetterFile(
     const offerLetter =
       await findStudentOfferLetter({
         studentUserId:
-          request.auth.userId,
+          request.auth
+            .userId,
 
         offerId,
       });
@@ -1114,7 +1235,8 @@ export async function getStudentOfferLetterFile(
       offerLetter,
 
       download:
-        request.query.download ===
+        request.query
+          .download ===
         "1",
     });
   } catch (error) {
@@ -1142,7 +1264,8 @@ export async function requireRecruiterOfferLetter(
   try {
     const offerId =
       parsePositiveId(
-        request.params.offerId
+        request.params
+          .offerId
       );
 
     if (!offerId) {
@@ -1159,7 +1282,8 @@ export async function requireRecruiterOfferLetter(
     const offerLetter =
       await findRecruiterOfferLetter({
         recruiterUserId:
-          request.auth.userId,
+          request.auth
+            .userId,
 
         offerId,
       });
@@ -1176,7 +1300,8 @@ export async function requireRecruiterOfferLetter(
     }
 
     if (
-      !offerLetter.available
+      !offerLetter
+        .available
     ) {
       return response
         .status(409)

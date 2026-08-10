@@ -7,13 +7,20 @@ function formatDate(
     return "";
   }
 
-  if (value instanceof Date) {
+  if (
+    value instanceof Date
+  ) {
     return value
       .toISOString()
-      .slice(0, 10);
+      .slice(
+        0,
+        10
+      );
   }
 
-  return String(value).slice(
+  return String(
+    value
+  ).slice(
     0,
     10
   );
@@ -26,11 +33,16 @@ function formatDateTime(
     return null;
   }
 
-  if (value instanceof Date) {
-    return value.toISOString();
+  if (
+    value instanceof Date
+  ) {
+    return value
+      .toISOString();
   }
 
-  return String(value);
+  return String(
+    value
+  );
 }
 
 function mapVerification(
@@ -56,6 +68,18 @@ function mapVerification(
 
     documentSha256:
       row.document_sha256,
+
+    signatureAlgorithm:
+      row.signature_algorithm ||
+      "",
+
+    documentSignatureBase64:
+      row.document_signature_base64 ||
+      "",
+
+    signingKeyId:
+      row.signing_key_id ||
+      "",
 
     documentSizeBytes:
       Number(
@@ -116,6 +140,21 @@ function mapPublicVerification(
 
     tokenHash:
       row.verification_token_hash,
+
+    documentSha256:
+      row.document_sha256,
+
+    signatureAlgorithm:
+      row.signature_algorithm ||
+      "",
+
+    documentSignatureBase64:
+      row.document_signature_base64 ||
+      "",
+
+    signingKeyId:
+      row.signing_key_id ||
+      "",
 
     verificationStatus:
       row.verification_status,
@@ -220,6 +259,9 @@ export async function findOfferVerificationById(
           offer_id,
           verification_public_id,
           document_sha256,
+          signature_algorithm,
+          document_signature_base64,
+          signing_key_id,
           document_size_bytes,
           document_original_name,
           document_version,
@@ -230,7 +272,8 @@ export async function findOfferVerificationById(
 
         FROM offer_verifications
 
-        WHERE verification_id = ?
+        WHERE
+          verification_id = ?
 
         LIMIT 1
       `,
@@ -255,6 +298,9 @@ export async function findActiveOfferVerification(
           offer_id,
           verification_public_id,
           document_sha256,
+          signature_algorithm,
+          document_signature_base64,
+          signing_key_id,
           document_size_bytes,
           document_original_name,
           document_version,
@@ -285,6 +331,36 @@ export async function findActiveOfferVerification(
   );
 }
 
+export async function findNextOfferVerificationVersion(
+  offerId
+) {
+  const [rows] =
+    await databasePool.execute(
+      `
+        SELECT
+          COALESCE(
+            MAX(document_version),
+            0
+          ) + 1
+            AS next_document_version
+
+        FROM offer_verifications
+
+        WHERE
+          offer_id = ?
+      `,
+      [
+        offerId,
+      ]
+    );
+
+  return Number(
+    rows[0]
+      ?.next_document_version ||
+    1
+  );
+}
+
 export async function findPublicOfferVerification(
   verificationPublicId
 ) {
@@ -296,6 +372,10 @@ export async function findPublicOfferVerification(
           verification.offer_id,
           verification.verification_public_id,
           verification.verification_token_hash,
+          verification.document_sha256,
+          verification.signature_algorithm,
+          verification.document_signature_base64,
+          verification.signing_key_id,
 
           verification.status
             AS verification_status,
@@ -437,6 +517,10 @@ export async function saveGeneratedOfferWithVerification({
     verificationPublicId,
     verificationTokenHash,
     documentSha256,
+    signatureAlgorithm,
+    documentSignatureBase64,
+    signingKeyId,
+    documentVersion,
   },
 }) {
   const connection =
@@ -514,19 +598,34 @@ export async function saveGeneratedOfferWithVerification({
 
           FROM offer_verifications
 
-          WHERE offer_id = ?
+          WHERE
+            offer_id = ?
         `,
         [
           offerId,
         ]
       );
 
-    const documentVersion =
+    const expectedDocumentVersion =
       Number(
         versionRows[0]
           ?.next_document_version ||
         1
       );
+
+    if (
+      Number(
+        documentVersion
+      ) !==
+      expectedDocumentVersion
+    ) {
+      await connection.rollback();
+
+      return {
+        result:
+          "version_conflict",
+      };
+    }
 
     await connection.execute(
       `
@@ -582,13 +681,16 @@ export async function saveGeneratedOfferWithVerification({
             verification_public_id,
             verification_token_hash,
             document_sha256,
+            signature_algorithm,
+            document_signature_base64,
+            signing_key_id,
             document_size_bytes,
             document_original_name,
             document_version,
             status
           )
           VALUES (
-            ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             'active'
           )
         `,
@@ -597,6 +699,9 @@ export async function saveGeneratedOfferWithVerification({
           verificationPublicId,
           verificationTokenHash,
           documentSha256,
+          signatureAlgorithm,
+          documentSignatureBase64,
+          signingKeyId,
           sizeBytes,
           originalFileName,
           documentVersion,

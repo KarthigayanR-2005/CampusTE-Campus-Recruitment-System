@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 server/uploads/resumes/
+
+server/keys/*.pem

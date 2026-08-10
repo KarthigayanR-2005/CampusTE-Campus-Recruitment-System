@@ -1,11 +1,14 @@
-import { apiRequest } from "./apiClient.js";
+import {
+  API_BASE_URL,
+  apiRequest,
+} from "./apiClient.js";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  "http://localhost:5000/api";
-
-async function readResponse(response) {
-  if (response.status === 204) {
+async function readResponse(
+  response
+) {
+  if (
+    response.status === 204
+  ) {
     return null;
   }
 
@@ -37,10 +40,11 @@ function createRequestError(
   responseData,
   fallbackMessage
 ) {
-  const error = new Error(
-    responseData?.message ||
-      fallbackMessage
-  );
+  const error =
+    new Error(
+      responseData?.message ||
+        fallbackMessage
+    );
 
   error.status =
     response.status;
@@ -55,7 +59,8 @@ function createAuthorizationHeaders(
   token
 ) {
   const headers = {
-    Accept: "application/json",
+    Accept:
+      "application/json",
   };
 
   if (token) {
@@ -78,7 +83,9 @@ function getFileNameFromDisposition(
       /filename\*=UTF-8''([^;]+)/i
     );
 
-  if (utfFileNameMatch?.[1]) {
+  if (
+    utfFileNameMatch?.[1]
+  ) {
     try {
       return decodeURIComponent(
         utfFileNameMatch[1]
@@ -106,20 +113,30 @@ async function uploadFileRequest(
     formData,
   }
 ) {
-  const response =
-    await fetch(
-      `${API_BASE_URL}${endpoint}`,
-      {
-        method: "POST",
+  let response;
 
-        headers:
-          createAuthorizationHeaders(
-            token
-          ),
+  try {
+    response =
+      await fetch(
+        `${API_BASE_URL}${endpoint}`,
+        {
+          method:
+            "POST",
 
-        body: formData,
-      }
+          headers:
+            createAuthorizationHeaders(
+              token
+            ),
+
+          body:
+            formData,
+        }
+      );
+  } catch {
+    throw new Error(
+      "Unable to connect to the CampusTE server. Check whether the backend is running."
     );
+  }
 
   const responseData =
     await readResponse(
@@ -143,18 +160,27 @@ async function blobRequest(
     token,
   } = {}
 ) {
-  const response =
-    await fetch(
-      `${API_BASE_URL}${endpoint}`,
-      {
-        method: "GET",
+  let response;
 
-        headers:
-          createAuthorizationHeaders(
-            token
-          ),
-      }
+  try {
+    response =
+      await fetch(
+        `${API_BASE_URL}${endpoint}`,
+        {
+          method:
+            "GET",
+
+          headers:
+            createAuthorizationHeaders(
+              token
+            ),
+        }
+      );
+  } catch {
+    throw new Error(
+      "Unable to connect to the CampusTE server. Check whether the backend is running."
     );
+  }
 
   if (!response.ok) {
     const responseData =
@@ -205,7 +231,9 @@ export function getRecruiterOffersRequest({
   return apiRequest(
     "/recruiter/offers",
     {
-      method: "GET",
+      method:
+        "GET",
+
       token,
     }
   );
@@ -218,7 +246,9 @@ export function getRecruiterOfferRequest({
   return apiRequest(
     `/recruiter/offers/${offerId}`,
     {
-      method: "GET",
+      method:
+        "GET",
+
       token,
     }
   );
@@ -232,9 +262,13 @@ export function createRecruiterOfferRequest({
   return apiRequest(
     `/recruiter/applications/${applicationId}/offers`,
     {
-      method: "POST",
+      method:
+        "POST",
+
       token,
-      body: offerData,
+
+      body:
+        offerData,
     }
   );
 }
@@ -247,9 +281,13 @@ export function updateRecruiterOfferRequest({
   return apiRequest(
     `/recruiter/offers/${offerId}`,
     {
-      method: "PUT",
+      method:
+        "PUT",
+
       token,
-      body: offerData,
+
+      body:
+        offerData,
     }
   );
 }
@@ -261,7 +299,9 @@ export function sendRecruiterOfferRequest({
   return apiRequest(
     `/recruiter/offers/${offerId}/send`,
     {
-      method: "POST",
+      method:
+        "POST",
+
       token,
     }
   );
@@ -275,7 +315,9 @@ export function withdrawRecruiterOfferRequest({
   return apiRequest(
     `/recruiter/offers/${offerId}/withdraw`,
     {
-      method: "PATCH",
+      method:
+        "PATCH",
+
       token,
 
       body: {
@@ -298,7 +340,9 @@ export function generateRecruiterOfferLetterRequest({
   return apiRequest(
     `/recruiter/offers/${offerId}/letter/generate`,
     {
-      method: "POST",
+      method:
+        "POST",
+
       token,
     }
   );
@@ -350,7 +394,9 @@ export function deleteRecruiterOfferLetterRequest({
   return apiRequest(
     `/recruiter/offers/${offerId}/letter`,
     {
-      method: "DELETE",
+      method:
+        "DELETE",
+
       token,
     }
   );
@@ -368,7 +414,9 @@ export function getStudentOffersRequest({
   return apiRequest(
     "/student/offers",
     {
-      method: "GET",
+      method:
+        "GET",
+
       token,
     }
   );
@@ -381,7 +429,9 @@ export function getStudentOfferRequest({
   return apiRequest(
     `/student/offers/${offerId}`,
     {
-      method: "GET",
+      method:
+        "GET",
+
       token,
     }
   );
@@ -396,7 +446,9 @@ export function respondToStudentOfferRequest({
   return apiRequest(
     `/student/offers/${offerId}/respond`,
     {
-      method: "PATCH",
+      method:
+        "PATCH",
+
       token,
 
       body: {
