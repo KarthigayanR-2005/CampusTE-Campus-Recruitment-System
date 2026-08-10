@@ -7,15 +7,20 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Local files
 *.local
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
@@ -23,6 +28,25 @@ dist-ssr
 *.sln
 *.sw?
 
-server/uploads/resumes/
+# --------------------------------------------------
+# CampusTE Backend Security
+# --------------------------------------------------
 
+# Environment secrets
+server/.env
+server/.env.*
+!server/.env.example
+
+# Cryptographic signing keys
 server/keys/*.pem
+
+# Runtime/user uploads
+server/uploads/
+
+# --------------------------------------------------
+# Optional OS / temporary files
+# --------------------------------------------------
+
+Thumbs.db
+*.tmp
+*.temp
