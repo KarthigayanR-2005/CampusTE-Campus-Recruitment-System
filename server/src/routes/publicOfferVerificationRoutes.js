@@ -11,18 +11,37 @@ import {
   uploadPublicOfferPdf,
 } from "../middleware/publicOfferIntegrityUpload.js";
 
-const publicOfferVerificationRouter =
+import {
+  publicOfferIntegrityRateLimit,
+  publicOfferVerificationRateLimit,
+} from "../middleware/publicVerificationRateLimit.js";
+
+const router =
   Router();
 
-publicOfferVerificationRouter.get(
+/*
+|--------------------------------------------------------------------------
+| Public QR verification
+|--------------------------------------------------------------------------
+*/
+
+router.get(
   "/offer-verifications/:publicId",
+  publicOfferVerificationRateLimit,
   verifyPublicOffer
 );
 
-publicOfferVerificationRouter.post(
+/*
+|--------------------------------------------------------------------------
+| Public PDF integrity verification
+|--------------------------------------------------------------------------
+*/
+
+router.post(
   "/offer-verifications/:publicId/document-integrity",
+  publicOfferIntegrityRateLimit,
   uploadPublicOfferPdf,
   verifyPublicOfferDocumentIntegrity
 );
 
-export default publicOfferVerificationRouter;
+export default router;
